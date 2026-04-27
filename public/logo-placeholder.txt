@@ -1,0 +1,3 @@
+Logo file not available in build environment.
+Replace this placeholder by adding logo-original.png as public/logo.png.
+The HomePage references /logo.png — once added, it will render automatically.
