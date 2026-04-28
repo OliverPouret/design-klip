@@ -12,15 +12,13 @@ export function HomePage() {
       <StickyHeader />
       <HeroSection />
 
-      {/* Content card — centered, max-width, sits on top of fixed background */}
-      <div className="relative px-0 md:px-8 lg:px-12 pb-12">
-        <div className="max-w-4xl mx-auto bg-white shadow-2xl border-x border-border/50">
-          <Carousel />
-          <PriceList />
-          <BarberProfiles />
-          <ContactStrip />
-          <Footer />
-        </div>
+      {/* Full-width sections with small gaps so the fixed background shows between them */}
+      <div className="relative space-y-3 pb-12">
+        <div className="bg-white"><Carousel /></div>
+        <div className="bg-white"><PriceList /></div>
+        <BarberProfiles />
+        <div className="bg-white"><ContactStrip /></div>
+        <Footer />
       </div>
     </div>
   )

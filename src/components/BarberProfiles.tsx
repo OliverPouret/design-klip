@@ -16,7 +16,7 @@ export function BarberProfiles() {
   const selected = barbers.find(b => b.slug === selectedSlug)
 
   return (
-    <section id="om-os" className="py-10 px-5 bg-surface/60 border-y border-border/50">
+    <section id="om-os" className="py-10 px-5 bg-surface">
       <p className="text-center text-[0.6875rem] tracking-[0.14em] uppercase text-ink-subtle mb-1">
         Om os
       </p>

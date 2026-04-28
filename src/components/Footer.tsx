@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 export function Footer() {
   return (
-    <footer className="bg-surface/60 px-5 py-10 border-t border-border/50">
+    <footer className="bg-surface px-5 py-10 border-t border-border/50">
       <div className="max-w-xl mx-auto text-center">
         <p className="font-serif text-base text-ink mb-2">Design Klip</p>
         <p className="text-xs text-ink-muted mb-1">Holbækvej 39, 4000 Roskilde</p>
