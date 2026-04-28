@@ -1,19 +1,20 @@
 export function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6">
-      {/* Background image */}
-      <picture className="absolute inset-0 z-0">
-        <source media="(min-width: 768px)" srcSet="/hero-desktop.jpg" />
-        <img
-          src="/hero-mobile.jpg"
-          alt=""
-          className="w-full h-full object-cover"
-          loading="eager"
-        />
-      </picture>
-
-      {/* Overlay for text readability */}
-      <div className="absolute inset-0 z-[1] bg-white/30" />
+      {/* Background image — fixed, washed out, sits behind the whole page */}
+      <div className="fixed inset-0 -z-10">
+        <picture>
+          <source media="(min-width: 768px)" srcSet="/hero-desktop.jpg" />
+          <img
+            src="/hero-mobile.jpg"
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ filter: 'grayscale(0.6) brightness(0.95)' }}
+            loading="eager"
+          />
+        </picture>
+        <div className="absolute inset-0 bg-white/40" />
+      </div>
 
       {/* Content */}
       <div className="relative z-[2] flex flex-col items-center">
