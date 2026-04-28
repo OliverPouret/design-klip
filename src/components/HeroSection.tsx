@@ -23,7 +23,7 @@ export function HeroSection() {
           DESIGN KLIP
         </h1>
         <p className="font-sans text-sm md:text-base text-ink-muted mb-8">
-          Barbershop i Roskilde
+          Frisør i Roskilde
         </p>
         <a href="/bestil" className="inline-flex items-center justify-center px-10 py-4 bg-accent text-white text-sm font-medium tracking-[0.1em] uppercase hover:bg-accent-deep transition-colors">
           Book nu

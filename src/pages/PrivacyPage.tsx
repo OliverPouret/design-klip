@@ -16,12 +16,12 @@ export function PrivacyPage() {
           <p className="text-xs text-ink-subtle">Senest opdateret: april 2026</p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvem er vi?</h2>
-          <p>Design Klip er en barbershop i Roskilde. Vi er dataansvarlige for de oplysninger, vi indsamler om dig.</p>
+          <p>Design Klip er en frisør i Roskilde. Vi er dataansvarlige for de oplysninger, vi indsamler om dig.</p>
           <p>Design Klip · Holbækvej 39, 4000 Roskilde · Tlf: +45 46 35 93 48 · kontakt@designklip.dk</p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvilke oplysninger indsamler vi?</h2>
           <p>Når du booker en tid, gemmer vi dit navn, telefonnummer, e-mail (hvis du oplyser den), hvilken ydelse du har booket, tidspunkt, barber og eventuelle beskeder.</p>
-          <p>Vores barberer kan skrive interne noter om dit klip, så vi husker dine præferencer.</p>
+          <p>Vores frisører kan skrive interne noter om dit klip, så vi husker dine præferencer.</p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvorfor gemmer vi dine oplysninger?</h2>
           <p>Vi bruger dine oplysninger til at bekræfte og administrere din tid (GDPR art. 6, stk. 1, litra b), sende SMS-bekræftelse og påmindelse (art. 6, stk. 1, litra f), og huske dine præferencer (art. 6, stk. 1, litra f).</p>

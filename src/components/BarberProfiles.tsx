@@ -8,7 +8,7 @@ export function BarberProfiles() {
   if (loading) {
     return (
       <section className="py-10 px-5">
-        <p className="text-center text-sm text-ink-subtle">Henter barberer…</p>
+        <p className="text-center text-sm text-ink-subtle">Henter frisører…</p>
       </section>
     )
   }
@@ -21,7 +21,7 @@ export function BarberProfiles() {
         Om os
       </p>
       <h2 className="text-center font-serif text-display-md text-ink mb-6">
-        Vores barberer
+        Vores frisører
       </h2>
 
       {/* Barber portrait grid */}

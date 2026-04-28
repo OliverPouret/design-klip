@@ -24,13 +24,14 @@ export function Carousel() {
           {items.map((item, i) => (
             <div
               key={`${item.src}-${i}`}
-              className="flex-shrink-0 mr-3 w-[160px] h-[210px] md:w-[200px] md:h-[260px] overflow-hidden"
+              className="flex-shrink-0 mr-3 w-[175px] h-[230px] md:w-[270px] md:h-[350px] overflow-hidden"
             >
               <img
                 src={item.src}
                 alt={item.alt}
                 className="w-full h-full object-cover"
-                loading="lazy"
+                loading="eager"
+                decoding="async"
               />
             </div>
           ))}
