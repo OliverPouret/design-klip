@@ -4,13 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#F4ECD8',
-        surface: '#EFE4CB',
-        'surface-raised': '#FBF6E9',
+        background: '#FFFFFF',
+        surface: '#FAFAF8',
+        'surface-raised': '#FFFFFF',
         ink: {
-          DEFAULT: '#2A2118',
-          muted: '#6B5B45',
-          subtle: '#9A8870',
+          DEFAULT: '#1A1A1A',
+          muted: '#6B6B6B',
+          subtle: '#9A9A9A',
         },
         accent: {
           DEFAULT: '#B08A3E',
@@ -19,10 +19,10 @@ export default {
           glow: '#D9BD7C',
         },
         border: {
-          DEFAULT: '#C8B89A',
-          strong: '#A89070',
+          DEFAULT: '#E5E5E5',
+          strong: '#CCCCCC',
         },
-        overlay: 'rgba(42, 33, 24, 0.55)',
+        overlay: 'rgba(26, 26, 26, 0.55)',
         success: { DEFAULT: '#5C7A4A', bg: '#E3E8D5' },
         warning: { DEFAULT: '#B8761F', bg: '#F1E2C2' },
         error:   { DEFAULT: '#9A2A2A', bg: '#EFD8D2' },
