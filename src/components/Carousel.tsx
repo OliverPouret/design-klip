@@ -19,7 +19,7 @@ export function Carousel() {
         Vores arbejde
       </p>
 
-      <div className="relative">
+      <div className="relative pointer-events-none select-none">
         <div className="flex animate-marquee w-max">
           {items.map((item, i) => (
             <div
