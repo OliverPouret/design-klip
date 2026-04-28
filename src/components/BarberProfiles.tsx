@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useBarbers } from '../hooks/useBarbers'
 
 export function BarberProfiles() {
@@ -52,12 +53,12 @@ export function BarberProfiles() {
         <div className="text-center max-w-sm mx-auto animate-fadeIn">
           <p className="font-serif text-lg text-ink mb-2">{selected.display_name}</p>
           <p className="text-sm text-ink-muted leading-relaxed mb-4">{selected.bio}</p>
-          <a
-            href={`/bestil?barber=${selected.slug}`}
+          <Link
+            to={`/bestil?barber=${selected.slug}`}
             className="inline-flex items-center justify-center px-8 py-2.5 border border-accent text-accent text-xs font-medium tracking-[0.08em] uppercase hover:bg-accent hover:text-white transition-colors"
           >
             Book hos {selected.display_name}
-          </a>
+          </Link>
         </div>
       )}
     </section>

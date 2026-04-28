@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useServices } from '../hooks/useServices'
 import { formatDKK } from '../types/database'
 
@@ -23,9 +24,9 @@ export function PriceList() {
 
       <div>
         {services.map((service) => (
-          <a
+          <Link
             key={service.id}
-            href={`/bestil?service=${service.slug}`}
+            to={`/bestil?service=${service.slug}`}
             className="flex items-center justify-between py-3.5 border-b border-border last:border-b-0 group hover:bg-surface/50 transition-colors -mx-3 px-3"
           >
             <div>
@@ -39,14 +40,14 @@ export function PriceList() {
             <span className="text-sm text-ink font-medium">
               {formatDKK(service.price_ore)}
             </span>
-          </a>
+          </Link>
         ))}
       </div>
 
       <div className="text-center mt-8">
-        <a href="/bestil" className="inline-flex items-center justify-center px-10 py-3.5 bg-accent text-white text-[0.8125rem] font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors">
+        <Link to="/bestil" className="inline-flex items-center justify-center px-10 py-3.5 bg-accent text-white text-[0.8125rem] font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors">
           Book nu
-        </a>
+        </Link>
       </div>
     </section>
   )

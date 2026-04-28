@@ -1,21 +1,8 @@
+import { Link } from 'react-router-dom'
+
 export function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6">
-      {/* Background image — fixed, washed out, sits behind the whole page */}
-      <div className="fixed inset-0 -z-10">
-        <picture>
-          <source media="(min-width: 768px)" srcSet="/hero-desktop.jpg" />
-          <img
-            src="/hero-mobile.jpg"
-            alt=""
-            className="w-full h-full object-cover"
-            style={{ filter: 'grayscale(0.6) brightness(0.95)' }}
-            loading="eager"
-          />
-        </picture>
-        <div className="absolute inset-0 bg-white/40" />
-      </div>
-
       {/* Content */}
       <div className="relative z-[2] flex flex-col items-center">
         <img src="/logo.png" alt="Design Klip" className="h-20 md:h-28 w-auto mb-4" />
@@ -25,9 +12,9 @@ export function HeroSection() {
         <p className="font-sans text-sm md:text-base text-ink-muted mb-8">
           Frisør i Roskilde
         </p>
-        <a href="/bestil" className="inline-flex items-center justify-center px-10 py-4 bg-accent text-white text-sm font-medium tracking-[0.1em] uppercase hover:bg-accent-deep transition-colors">
+        <Link to="/bestil" className="inline-flex items-center justify-center px-10 py-4 bg-accent text-white text-sm font-medium tracking-[0.1em] uppercase hover:bg-accent-deep transition-colors">
           Book nu
-        </a>
+        </Link>
       </div>
 
       {/* Scroll hint */}
