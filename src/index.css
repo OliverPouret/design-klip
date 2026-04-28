@@ -5,8 +5,8 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
-    background-color: #F4ECD8;
-    color: #2A2118;
+    background-color: #FFFFFF;
+    color: #1A1A1A;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -15,4 +15,34 @@
   .font-tnum {
     font-feature-settings: 'tnum';
   }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+[id] {
+  scroll-margin-top: 80px;
+}
+
+html {
+  scroll-behavior: smooth;
 }
