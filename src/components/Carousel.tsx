@@ -20,11 +20,11 @@ export function Carousel() {
       </p>
 
       <div className="relative">
-        <div className="flex gap-3 animate-marquee">
+        <div className="flex animate-marquee w-max">
           {items.map((item, i) => (
             <div
               key={`${item.src}-${i}`}
-              className="flex-shrink-0 w-[160px] h-[210px] md:w-[200px] md:h-[260px] overflow-hidden"
+              className="flex-shrink-0 mr-3 w-[160px] h-[210px] md:w-[200px] md:h-[260px] overflow-hidden"
             >
               <img
                 src={item.src}
