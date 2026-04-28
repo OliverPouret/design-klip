@@ -4,6 +4,8 @@ import { StickyHeader } from '../components/StickyHeader'
 import { ServiceStep } from '../components/booking/ServiceStep'
 import { BarberStep } from '../components/booking/BarberStep'
 import { DateTimeStep } from '../components/booking/DateTimeStep'
+import { CustomerStep, type CustomerInfo } from '../components/booking/CustomerStep'
+import { ConfirmStep } from '../components/booking/ConfirmStep'
 import { StepIndicator } from '../components/booking/StepIndicator'
 
 export type BookingStep = 'service' | 'barber' | 'datetime' | 'customer' | 'confirm'
@@ -15,6 +17,7 @@ export interface BookingState {
   anyBarber: boolean
   startsAt: string | null
   resolvedBarberId: string | null
+  customer: CustomerInfo | null
 }
 
 export function BookingPage() {
@@ -34,6 +37,7 @@ export function BookingPage() {
       anyBarber: false,
       startsAt: null,
       resolvedBarberId: null,
+      customer: null,
     }
   })
 
@@ -98,17 +102,16 @@ export function BookingPage() {
               />
             )}
             {state.step === 'customer' && (
-              <div className="text-center py-12">
-                <p className="font-serif text-xl text-ink mb-2">Næsten færdig</p>
-                <p className="text-sm text-ink-muted">
-                  Næste session: Kundeinfo + bekræftelse
-                </p>
-                <p className="text-xs text-ink-subtle mt-4">
-                  (Du har valgt: {state.serviceSlug} hos{' '}
-                  {state.anyBarber ? 'først ledige frisør' : state.barberSlug} kl.{' '}
-                  {state.startsAt && new Date(state.startsAt).toLocaleString('da-DK')})
-                </p>
-              </div>
+              <CustomerStep
+                state={state}
+                onNext={(info) => update({ customer: info, step: 'confirm' })}
+              />
+            )}
+            {state.step === 'confirm' && state.customer && (
+              <ConfirmStep
+                state={state}
+                customer={state.customer}
+              />
             )}
           </div>
         </div>

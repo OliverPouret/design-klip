@@ -24,7 +24,7 @@ export function BarberStep({
       </p>
 
       <div className="space-y-2">
-        {/* "Først ledige" option — first card */}
+        {/* "Første ledige" option — first card */}
         <button
           onClick={() => onSelect(null, true)}
           className={`w-full flex items-center gap-4 py-4 px-4 border rounded-sm transition-colors text-left ${
@@ -40,9 +40,9 @@ export function BarberStep({
             </svg>
           </div>
           <div>
-            <span className="block text-sm font-medium text-ink">Først ledige frisør</span>
+            <span className="block text-sm font-medium text-ink">Første ledige frisør</span>
             <span className="block text-xs text-ink-subtle mt-0.5">
-              Få den tidligste ledige tid
+              Få den tidligst mulige tid
             </span>
           </div>
         </button>
