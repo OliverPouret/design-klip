@@ -4,9 +4,10 @@ import './index.css'
 import App from './App.tsx'
 
 // Block pinch-zoom on iOS Safari (which ignores user-scalable=no)
-document.addEventListener('gesturestart', (e) => e.preventDefault())
-document.addEventListener('gesturechange', (e) => e.preventDefault())
-document.addEventListener('gestureend', (e) => e.preventDefault())
+const blockGesture = (e: Event) => e.preventDefault()
+document.addEventListener('gesturestart', blockGesture, { passive: false })
+document.addEventListener('gesturechange', blockGesture, { passive: false })
+document.addEventListener('gestureend', blockGesture, { passive: false })
 
 // Block multi-touch pinch-zoom (Android + cross-browser fallback)
 document.addEventListener(
