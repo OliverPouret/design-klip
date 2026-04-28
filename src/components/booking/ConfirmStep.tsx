@@ -52,7 +52,17 @@ export function ConfirmStep({
     }
 
     const shortCode = Array.isArray(data) ? data[0]?.short_code : data?.short_code
+    const bookingIdForSms = Array.isArray(data) ? data[0]?.booking_id : data?.booking_id
+
     if (shortCode) {
+      // Fire-and-forget — booking is already confirmed, don't block on SMS delivery
+      if (bookingIdForSms) {
+        fetch('/api/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'confirmation', bookingId: bookingIdForSms }),
+        }).catch(() => {})
+      }
       navigate(`/bestil/bekraeftet/${shortCode}`)
     }
   }
