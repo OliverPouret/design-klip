@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { formatDateLong, formatTime } from '../../lib/danishDates'
+import { Card } from '../../components/admin/Card'
 
 interface Customer {
   id: string
@@ -101,7 +102,6 @@ export function CustomerDetailPage() {
       setNotes([data as CustNote, ...notes])
       setNewNote('')
 
-      // Auto-regenerate AI profile (fire-and-forget)
       fetch('/api/generate-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,8 +128,8 @@ export function CustomerDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-ink-subtle">Henter kundeprofil…</p>
-  if (!customer) return <p className="text-sm text-ink-muted">Kunde ikke fundet.</p>
+  if (loading) return <p className="text-sm text-[#8A8A8A]">Henter kundeprofil…</p>
+  if (!customer) return <p className="text-sm text-[#5F5E5A]">Kunde ikke fundet.</p>
 
   // "Usual" service — most frequent
   const serviceCounts: Record<string, number> = {}
@@ -145,38 +145,38 @@ export function CustomerDetailPage() {
   const lastVisit = bookings.find((b) => b.status === 'completed' || b.status === 'confirmed')
 
   return (
-    <div>
-      <Link to="/admin/kunder" className="text-xs text-ink-subtle hover:text-ink mb-4 block">
+    <div className="max-w-3xl space-y-4">
+      <Link to="/admin/kunder" className="text-[12px] text-[#5F5E5A] hover:text-ink block">
         ← Alle kunder
       </Link>
 
       {/* Profile header */}
-      <div className="bg-white border border-border rounded-sm p-6 mb-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-serif text-xl text-ink">{customer.full_name}</h1>
-            <p className="text-sm text-ink-muted mt-1">
-              <a href={`tel:${customer.phone_e164}`} className="text-accent-deep">
+      <Card>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-serif text-[20px] text-ink">{customer.full_name}</h1>
+            <p className="text-sm text-[#5F5E5A] mt-1">
+              <a href={`tel:${customer.phone_e164}`} className="text-[#B08A3E] hover:text-[#8C6A28]">
                 {customer.phone_e164}
               </a>
-              {customer.email && ` · ${customer.email}`}
+              {customer.email && <span className="text-[#8A8A8A]"> · {customer.email}</span>}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-serif text-ink">{customer.total_bookings}</p>
-            <p className="text-xs text-ink-subtle">besøg</p>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[28px] font-serif text-ink leading-none">{customer.total_bookings}</p>
+            <p className="text-[11px] text-[#8A8A8A] mt-1 tracking-[0.08em] uppercase">besøg</p>
           </div>
         </div>
 
         {/* AI Profile Summary */}
         {customer.notes_summary ? (
-          <div className="mt-4 pt-4 border-t border-border">
+          <div className="mt-5 bg-[#FAFAF8] border-l-2 border-[#B08A3E] rounded-r-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs tracking-[0.08em] uppercase text-ink-subtle">AI-profil</p>
+              <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold">AI-profil</p>
               <button
                 onClick={handleRegenerateProfile}
                 disabled={regenerating}
-                className="text-[0.625rem] text-accent-deep hover:text-ink transition-colors"
+                className="text-[11px] text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
               >
                 {regenerating ? 'Opdaterer…' : '↻ Opdatér'}
               </button>
@@ -186,11 +186,11 @@ export function CustomerDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="mt-4 pt-4 border-t border-border">
+          <div className="mt-5">
             <button
               onClick={handleRegenerateProfile}
               disabled={regenerating}
-              className="text-sm text-accent-deep hover:text-ink transition-colors"
+              className="text-sm text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
             >
               {regenerating ? 'Genererer profil…' : '✨ Generér AI-profil'}
             </button>
@@ -198,25 +198,25 @@ export function CustomerDetailPage() {
         )}
 
         {/* Quick stats */}
-        <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
+        <div className="grid grid-cols-2 gap-3 mt-5">
           {usualService && (
-            <div>
-              <p className="text-xs text-ink-subtle">Får som regel</p>
-              <p className="text-sm text-ink font-medium">{usualService}</p>
+            <div className="bg-[#F6F6F3] rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold">Får som regel</p>
+              <p className="text-sm text-ink font-medium mt-1">{usualService}</p>
             </div>
           )}
           {lastVisit && (
-            <div>
-              <p className="text-xs text-ink-subtle">Sidst her</p>
-              <p className="text-sm text-ink font-medium">{formatDateLong(new Date(lastVisit.starts_at))}</p>
-              <p className="text-xs text-ink-muted">
+            <div className="bg-[#F6F6F3] rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold">Sidst her</p>
+              <p className="text-sm text-ink font-medium mt-1">{formatDateLong(new Date(lastVisit.starts_at))}</p>
+              <p className="text-[11px] text-[#5F5E5A]">
                 {lastVisit.service.name_da} hos {lastVisit.barber.display_name}
               </p>
             </div>
           )}
-          <div>
-            <p className="text-xs text-ink-subtle">Kunde siden</p>
-            <p className="text-sm text-ink font-medium">
+          <div className="bg-[#F6F6F3] rounded-lg p-3">
+            <p className="text-[10px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold">Kunde siden</p>
+            <p className="text-sm text-ink font-medium mt-1">
               {new Date(customer.created_at).toLocaleDateString('da-DK', {
                 day: 'numeric',
                 month: 'long',
@@ -225,19 +225,19 @@ export function CustomerDetailPage() {
             </p>
           </div>
           {sortedServices.length > 1 && (
-            <div>
-              <p className="text-xs text-ink-subtle">Alle ydelser</p>
-              <p className="text-sm text-ink">
+            <div className="bg-[#F6F6F3] rounded-lg p-3">
+              <p className="text-[10px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold">Alle ydelser</p>
+              <p className="text-[12px] text-ink mt-1">
                 {sortedServices.map(([name, count]) => `${name} (×${count})`).join(', ')}
               </p>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Notes */}
-      <div className="bg-white border border-border rounded-sm p-6 mb-4">
-        <h2 className="text-sm font-medium text-ink mb-3">Kundenoter</h2>
+      <Card>
+        <h2 className="text-[13px] font-medium text-ink mb-3">Kundenoter</h2>
 
         <div className="flex gap-2 mb-4">
           <input
@@ -245,26 +245,26 @@ export function CustomerDetailPage() {
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note om denne kunde…"
-            className="flex-1 border border-border rounded-sm px-3 py-2 text-sm outline-none focus:border-accent"
+            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
           />
           <button
             onClick={handleAddNote}
             disabled={!newNote.trim()}
-            className="px-4 py-2 bg-accent text-white text-xs font-medium uppercase hover:bg-accent-deep transition-colors disabled:opacity-40"
+            className="px-4 py-2.5 bg-[#B08A3E] text-white text-[12px] font-medium rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-40"
           >
             Tilføj
           </button>
         </div>
 
         {notes.length === 0 ? (
-          <p className="text-xs text-ink-subtle">Ingen noter endnu.</p>
+          <p className="text-[12px] text-[#8A8A8A]">Ingen noter endnu.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {notes.map((note) => (
-              <div key={note.id} className="border-b border-border pb-2 last:border-0">
+              <div key={note.id} className="border-b border-[#F0F0ED] pb-3 last:border-0 last:pb-0">
                 <p className="text-sm text-ink">{note.body}</p>
-                <p className="text-[0.625rem] text-ink-subtle mt-0.5">
+                <p className="text-[11px] text-[#8A8A8A] mt-1">
                   {new Date(note.created_at).toLocaleDateString('da-DK', {
                     day: 'numeric',
                     month: 'short',
@@ -275,42 +275,44 @@ export function CustomerDetailPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Booking history */}
-      <div className="bg-white border border-border rounded-sm p-6">
-        <h2 className="text-sm font-medium text-ink mb-3">Historik ({bookings.length} bookinger)</h2>
+      <Card>
+        <h2 className="text-[13px] font-medium text-ink mb-3">Historik ({bookings.length} bookinger)</h2>
 
         {bookings.length === 0 ? (
-          <p className="text-xs text-ink-subtle">Ingen bookinger endnu.</p>
+          <p className="text-[12px] text-[#8A8A8A]">Ingen bookinger endnu.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1 -mx-2">
             {bookings.map((bk) => (
               <Link
                 key={bk.id}
                 to={`/admin/booking/${bk.id}`}
-                className="block border-b border-border pb-2 last:border-0 hover:bg-surface/50 -mx-2 px-2 py-1 transition-colors"
+                className="block px-2 py-2.5 rounded-lg hover:bg-[#FAFAF8] transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <p className="text-sm text-ink">
                       {bk.service.name_da} hos {bk.barber.display_name}
                     </p>
-                    <p className="text-xs text-ink-muted">
+                    <p className="text-[12px] text-[#8A8A8A] mt-0.5">
                       {formatDateLong(new Date(bk.starts_at))} {formatTime(new Date(bk.starts_at))}
                       {bk.source === 'phone' && ' · 📞'}
                     </p>
                   </div>
-                  <span className="text-[0.625rem] text-ink-subtle">{STATUS_LABEL[bk.status] ?? bk.status}</span>
+                  <span className="text-[10px] tracking-[0.08em] uppercase text-[#8A8A8A] font-semibold whitespace-nowrap">
+                    {STATUS_LABEL[bk.status] ?? bk.status}
+                  </span>
                 </div>
                 {bk.customer_notes && (
-                  <p className="text-xs text-ink-subtle italic mt-0.5">"{bk.customer_notes}"</p>
+                  <p className="text-[12px] text-[#8A8A8A] italic mt-1">"{bk.customer_notes}"</p>
                 )}
               </Link>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

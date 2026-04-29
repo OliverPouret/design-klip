@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { formatDateLong, formatTime } from '../../lib/danishDates'
 import { formatDKK } from '../../types/database'
+import { Card } from '../../components/admin/Card'
 
 interface BookingDetail {
   id: string
@@ -27,6 +28,26 @@ interface CustNote {
   tags: string[]
   author_id: string | null
   created_at: string
+}
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  confirmed: { bg: '#E6F4EA', text: '#1B7340', label: 'Bekræftet' },
+  pending: { bg: '#FEF7E0', text: '#8A6D1B', label: 'Afventer' },
+  completed: { bg: '#F0F0ED', text: '#5F5E5A', label: 'Fuldført' },
+  no_show: { bg: '#FCE8E8', text: '#9B2C2C', label: 'Udeblevet' },
+  cancelled: { bg: '#F0F0ED', text: '#8A8A8A', label: 'Afbestilt' },
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_STYLES[status] ?? { bg: '#F0F0ED', text: '#8A8A8A', label: status }
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-[0.08em] uppercase"
+      style={{ backgroundColor: s.bg, color: s.text }}
+    >
+      {s.label}
+    </span>
+  )
 }
 
 export function BookingDetailPage() {
@@ -88,7 +109,6 @@ export function BookingDetailPage() {
       .update({ status: 'completed' })
       .eq('id', booking.id)
 
-    // Auto-regenerate AI profile (fire-and-forget)
     fetch('/api/generate-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -129,7 +149,6 @@ export function BookingDetailPage() {
       setCustNotes([data as CustNote, ...custNotes])
       setNewNote('')
 
-      // Auto-regenerate AI profile (fire-and-forget)
       fetch('/api/generate-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,31 +157,36 @@ export function BookingDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-ink-subtle">Henter booking…</p>
-  if (!booking) return <p className="text-sm text-ink-muted">Booking ikke fundet.</p>
+  if (loading) return <p className="text-sm text-[#8A8A8A]">Henter booking…</p>
+  if (!booking) return <p className="text-sm text-[#5F5E5A]">Booking ikke fundet.</p>
 
   return (
-    <div>
+    <div className="space-y-4 max-w-3xl">
       <button
         onClick={() => navigate(-1)}
-        className="text-xs text-ink-subtle hover:text-ink mb-4"
+        className="text-[12px] text-[#5F5E5A] hover:text-ink transition-colors"
       >
         ← Tilbage
       </button>
 
-      <div className="bg-white border border-border rounded-sm p-6 mb-4">
-        <div className="flex items-start justify-between mb-4">
-          <h1 className="font-serif text-lg text-ink">Booking #{booking.short_code}</h1>
-          <span className="text-xs px-2 py-1 rounded-full bg-surface text-ink-muted font-medium">
-            {booking.source === 'phone' ? '📞 Telefon' : '🌐 Web'}
-          </span>
+      <Card>
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h1 className="font-serif text-[20px] text-ink">Booking #{booking.short_code}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <StatusBadge status={booking.status} />
+              <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#8A8A8A]">
+                {booking.source === 'phone' ? '📞 Telefon' : '🌐 Web'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2.5 text-sm">
           <Row label="Kunde" value={booking.customer.full_name} />
           <div className="flex justify-between">
-            <span className="text-ink-muted">Telefon</span>
-            <a href={`tel:${booking.customer.phone_e164}`} className="text-accent-deep">
+            <span className="text-[#8A8A8A]">Telefon</span>
+            <a href={`tel:${booking.customer.phone_e164}`} className="text-[#B08A3E] hover:text-[#8C6A28]">
               {booking.customer.phone_e164}
             </a>
           </div>
@@ -173,61 +197,61 @@ export function BookingDetailPage() {
           <Row label="Tid" value={formatTime(new Date(booking.starts_at))} />
           {booking.customer_notes && (
             <div className="flex justify-between">
-              <span className="text-ink-muted">Kundens besked</span>
+              <span className="text-[#8A8A8A]">Kundens besked</span>
               <span className="text-ink italic text-right max-w-[60%]">"{booking.customer_notes}"</span>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Actions */}
       {booking.status === 'confirmed' && (
-        <div className="bg-white border border-border rounded-sm p-6 mb-4">
-          <div className="mb-4">
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+        <Card>
+          <div className="mb-5">
+            <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium mb-2">
               Hvad blev lavet?{' '}
-              <span className="text-ink-subtle font-normal normal-case">(udfyldes ved fuldførelse)</span>
+              <span className="text-[#8A8A8A] font-normal normal-case">(udfyldes ved fuldførelse)</span>
             </label>
             <input
               type="text"
               value={cutDetails}
               onChange={(e) => setCutDetails(e.target.value)}
               placeholder="f.eks. fade 2, lang top, skæg trimmet kort"
-              className="w-full border border-border rounded-sm px-3 py-2.5 text-sm outline-none focus:border-accent transition-colors"
+              className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={handleComplete}
               disabled={actionLoading}
-              className="flex-1 py-3 bg-accent text-white text-xs font-medium uppercase tracking-[0.08em] hover:bg-accent-deep transition-colors disabled:opacity-60"
+              className="flex-1 py-3 bg-[#B08A3E] text-white text-[13px] font-medium tracking-[0.04em] rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-60"
             >
               Markér som fuldført
             </button>
             <button
               onClick={() => handleStatusChange('no_show')}
               disabled={actionLoading}
-              className="flex-1 py-3 bg-red-500 text-white text-xs font-medium uppercase tracking-[0.08em] hover:bg-red-600 transition-colors disabled:opacity-60"
+              className="flex-1 py-3 bg-[#DC3545] text-white text-[13px] font-medium tracking-[0.04em] rounded-lg hover:bg-[#B82C3A] transition-colors disabled:opacity-60"
             >
               Udeblevet
             </button>
             <button
               onClick={() => handleStatusChange('cancelled')}
               disabled={actionLoading}
-              className="flex-1 py-3 border border-border text-ink-muted text-xs font-medium uppercase tracking-[0.08em] hover:bg-surface transition-colors disabled:opacity-60"
+              className="flex-1 py-3 bg-white border border-[#E8E8E5] text-[#5F5E5A] text-[13px] font-medium tracking-[0.04em] rounded-lg hover:bg-[#F6F6F3] transition-colors disabled:opacity-60"
             >
               Afbestil
             </button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Customer notes */}
-      <div className="bg-white border border-border rounded-sm p-6">
-        <h2 className="text-sm font-medium text-ink mb-4">
+      <Card>
+        <h2 className="text-[13px] font-medium text-ink mb-4">
           Kundenoter — {booking.customer.full_name}
-          <span className="text-ink-subtle font-normal ml-1">
+          <span className="text-[#8A8A8A] font-normal ml-1">
             ({booking.customer.total_bookings} besøg)
           </span>
         </h2>
@@ -238,33 +262,33 @@ export function BookingDetailPage() {
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note om denne kunde…"
-            className="flex-1 border border-border rounded-sm px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
+            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
           />
           <button
             onClick={handleAddNote}
             disabled={!newNote.trim()}
-            className="px-4 py-2 bg-accent text-white text-xs font-medium uppercase hover:bg-accent-deep transition-colors disabled:opacity-40"
+            className="px-4 py-2.5 bg-[#B08A3E] text-white text-[12px] font-medium rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-40"
           >
             Tilføj
           </button>
         </div>
 
         {custNotes.length === 0 ? (
-          <p className="text-xs text-ink-subtle">Ingen noter endnu.</p>
+          <p className="text-[12px] text-[#8A8A8A]">Ingen noter endnu.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {custNotes.map((note) => (
-              <div key={note.id} className="border-b border-border pb-2 last:border-0">
+              <div key={note.id} className="border-b border-[#F0F0ED] pb-3 last:border-0 last:pb-0">
                 <p className="text-sm text-ink">{note.body}</p>
-                <p className="text-[0.625rem] text-ink-subtle mt-0.5">
+                <p className="text-[11px] text-[#8A8A8A] mt-1">
                   {new Date(note.created_at).toLocaleDateString('da-DK')}
                 </p>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
@@ -272,7 +296,7 @@ export function BookingDetailPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-ink-muted">{label}</span>
+      <span className="text-[#8A8A8A]">{label}</span>
       <span className="text-ink font-medium">{value}</span>
     </div>
   )

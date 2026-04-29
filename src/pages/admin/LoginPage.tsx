@@ -28,16 +28,16 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white shadow-xl border border-border/50 p-8">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[#F6F6F3] relative">
+      <div className="w-full max-w-md bg-white border border-[#E8E8E5] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-10">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Design Klip" className="h-12 w-auto mx-auto mb-3" />
-          <h1 className="font-serif text-xl text-ink">Personale login</h1>
+          <img src="/logo.png" alt="Design Klip" className="h-16 w-auto mx-auto mb-4" />
+          <h1 className="font-serif text-[24px] text-ink">Personale login</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+            <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium mb-2">
               E-mail
             </label>
             <input
@@ -45,13 +45,13 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full border border-border rounded-sm px-4 py-3 text-sm text-ink outline-none focus:border-accent transition-colors"
+              className="w-full border border-[#E8E8E5] rounded-lg px-4 py-3.5 text-sm text-ink outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
               autoComplete="email"
             />
           </div>
 
           <div>
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+            <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium mb-2">
               Adgangskode
             </label>
             <input
@@ -59,19 +59,17 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full border border-border rounded-sm px-4 py-3 text-sm text-ink outline-none focus:border-accent transition-colors"
+              className="w-full border border-[#E8E8E5] rounded-lg px-4 py-3.5 text-sm text-ink outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
               autoComplete="current-password"
             />
           </div>
 
-          {error && (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
+          {error && <p className="text-[12px] text-[#9B2C2C]">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-accent text-white text-sm font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors disabled:opacity-60"
+            className="w-full py-3.5 bg-[#B08A3E] text-white text-sm font-medium tracking-[0.08em] uppercase rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-60"
           >
             {loading ? 'Logger ind…' : 'Log ind'}
           </button>

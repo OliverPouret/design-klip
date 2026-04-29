@@ -5,11 +5,27 @@ import { useServices } from '../../hooks/useServices'
 import { useBarbers } from '../../hooks/useBarbers'
 import { formatDKK } from '../../types/database'
 import { formatDateLong, formatTimeShort, isoDate } from '../../lib/danishDates'
+import { Card } from '../../components/admin/Card'
 
 interface Slot {
   slot_starts_at: string
   available_barber_ids: string[]
 }
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border-b border-[#F0F0ED] pb-2 mb-3">
+      <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">{children}</p>
+    </div>
+  )
+}
+
+const SELECT_BTN =
+  'text-left px-3.5 py-2.5 border rounded-lg text-sm transition-all'
+const SELECT_DEFAULT =
+  'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+const SELECT_ACTIVE =
+  'border-[#B08A3E] bg-[#B08A3E]/[0.06] text-ink font-medium'
 
 export function CreateBookingPage() {
   const navigate = useNavigate()
@@ -84,184 +100,192 @@ export function CreateBookingPage() {
   today.setHours(0, 0, 0, 0)
 
   return (
-    <div>
-      <h1 className="font-serif text-xl text-ink mb-6">Opret telefonbooking</h1>
+    <div className="max-w-2xl space-y-4">
+      <h1 className="font-serif text-[22px] text-ink">Opret telefonbooking</h1>
 
-      <div className="bg-white border border-border rounded-sm p-6 space-y-6">
-        {/* Service */}
-        <div>
-          <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-2">Ydelse</label>
-          <div className="grid grid-cols-1 gap-2">
-            {services.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => {
-                  setServiceId(s.id)
-                  setSelectedSlot(null)
-                  setSlots([])
-                }}
-                className={`text-left px-3 py-2.5 border rounded-sm text-sm transition-colors ${
-                  serviceId === s.id ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/50'
-                }`}
-              >
-                {s.name_da} — {formatDKK(s.price_ore)} ({s.duration_minutes} min)
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Barber */}
-        {serviceId && (
+      <Card>
+        <div className="space-y-6">
+          {/* Service */}
           <div>
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-2">Frisør</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  setBarberId(null)
-                  setSelectedSlot(null)
-                  setSlots([])
-                }}
-                className={`text-left px-3 py-2.5 border rounded-sm text-sm transition-colors ${
-                  barberId === null ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/50'
-                }`}
-              >
-                Første ledige
-              </button>
-              {barbers.map((b) => (
+            <SectionLabel>Ydelse</SectionLabel>
+            <div className="grid grid-cols-1 gap-2">
+              {services.map((s) => (
                 <button
-                  key={b.id}
+                  key={s.id}
                   onClick={() => {
-                    setBarberId(b.id)
+                    setServiceId(s.id)
                     setSelectedSlot(null)
                     setSlots([])
                   }}
-                  className={`text-left px-3 py-2.5 border rounded-sm text-sm transition-colors ${
-                    barberId === b.id ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/50'
-                  }`}
+                  className={`${SELECT_BTN} ${serviceId === s.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                 >
-                  {b.display_name}
+                  <div className="flex items-center justify-between">
+                    <span>{s.name_da}</span>
+                    <span className="text-[12px] text-[#5F5E5A]">
+                      {formatDKK(s.price_ore)} · {s.duration_minutes} min
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
-        )}
 
-        {/* Date — quick 14-day pick */}
-        {serviceId && (
-          <div>
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-2">Dato</label>
-            <div className="flex gap-2 flex-wrap">
-              {Array.from({ length: 14 }, (_, i) => {
-                const d = new Date(today)
-                d.setDate(today.getDate() + i)
-                if (d.getDay() === 0) return null // skip Sunday
-                return (
+          {/* Barber */}
+          {serviceId && (
+            <div>
+              <SectionLabel>Frisør</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setBarberId(null)
+                    setSelectedSlot(null)
+                    setSlots([])
+                  }}
+                  className={`${SELECT_BTN} ${barberId === null ? SELECT_ACTIVE : SELECT_DEFAULT}`}
+                >
+                  Første ledige
+                </button>
+                {barbers.map((b) => (
                   <button
-                    key={i}
-                    onClick={() => handleDatePick(d)}
-                    className={`px-3 py-2 border rounded-sm text-xs transition-colors ${
-                      selectedDate && isoDate(selectedDate) === isoDate(d)
-                        ? 'border-accent bg-accent text-white'
-                        : 'border-border hover:border-accent/50'
-                    }`}
+                    key={b.id}
+                    onClick={() => {
+                      setBarberId(b.id)
+                      setSelectedSlot(null)
+                      setSlots([])
+                    }}
+                    className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                   >
-                    <div className="font-medium">{d.toLocaleDateString('da-DK', { weekday: 'short' })}</div>
-                    <div>
-                      {d.getDate()}/{d.getMonth() + 1}
-                    </div>
-                  </button>
-                )
-              }).filter(Boolean)}
-            </div>
-          </div>
-        )}
-
-        {/* Time slots */}
-        {selectedDate && (
-          <div>
-            <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-2">
-              Tidspunkt — {formatDateLong(selectedDate)}
-            </label>
-            {loadingSlots ? (
-              <p className="text-xs text-ink-subtle">Henter ledige tider…</p>
-            ) : slots.length === 0 ? (
-              <p className="text-xs text-ink-muted">Ingen ledige tider denne dag.</p>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                {slots.map((slot) => (
-                  <button
-                    key={slot.slot_starts_at}
-                    onClick={() => setSelectedSlot(slot.slot_starts_at)}
-                    className={`py-2 border rounded-sm text-sm transition-colors ${
-                      selectedSlot === slot.slot_starts_at
-                        ? 'border-accent bg-accent text-white'
-                        : 'border-border hover:border-accent/50'
-                    }`}
-                  >
-                    {formatTimeShort(new Date(slot.slot_starts_at))}
+                    {b.display_name}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Customer info */}
-        {selectedSlot && (
-          <div className="space-y-3 border-t border-border pt-4">
-            <div>
-              <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1">Kundens navn</label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full border border-border rounded-sm px-3 py-2.5 text-sm outline-none focus:border-accent"
-              />
             </div>
-            <div>
-              <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1">
-                Telefonnummer
-              </label>
-              <input
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="12 34 56 78"
-                inputMode="numeric"
-                className="w-full border border-border rounded-sm px-3 py-2.5 text-sm outline-none focus:border-accent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1">
-                Note (valgfrit)
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="f.eks. vil betale med MobilePay"
-                className="w-full border border-border rounded-sm px-3 py-2.5 text-sm outline-none focus:border-accent"
-              />
-            </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-sm">
-            <p className="text-xs text-red-700">{error}</p>
-          </div>
-        )}
+          {/* Date */}
+          {serviceId && (
+            <div>
+              <SectionLabel>Dato</SectionLabel>
+              <div className="flex gap-2 flex-wrap">
+                {Array.from({ length: 14 }, (_, i) => {
+                  const d = new Date(today)
+                  d.setDate(today.getDate() + i)
+                  if (d.getDay() === 0) return null
+                  const isActive = selectedDate && isoDate(selectedDate) === isoDate(d)
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleDatePick(d)}
+                      className={`px-3 py-2 border rounded-lg text-[12px] transition-all ${
+                        isActive
+                          ? 'border-[#B08A3E] bg-[#B08A3E] text-white'
+                          : 'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+                      }`}
+                    >
+                      <div className="font-medium">{d.toLocaleDateString('da-DK', { weekday: 'short' })}</div>
+                      <div className={isActive ? 'text-white/85' : 'text-[#8A8A8A]'}>
+                        {d.getDate()}/{d.getMonth() + 1}
+                      </div>
+                    </button>
+                  )
+                }).filter(Boolean)}
+              </div>
+            </div>
+          )}
 
-        {selectedSlot && customerName && customerPhone && (
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full py-3.5 bg-accent text-white text-sm font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors disabled:opacity-60"
-          >
-            {submitting ? 'Opretter…' : 'Opret booking'}
-          </button>
-        )}
-      </div>
+          {/* Time slots */}
+          {selectedDate && (
+            <div>
+              <SectionLabel>Tidspunkt — {formatDateLong(selectedDate)}</SectionLabel>
+              {loadingSlots ? (
+                <p className="text-[12px] text-[#8A8A8A]">Henter ledige tider…</p>
+              ) : slots.length === 0 ? (
+                <p className="text-[12px] text-[#5F5E5A]">Ingen ledige tider denne dag.</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {slots.map((slot) => {
+                    const isActive = selectedSlot === slot.slot_starts_at
+                    return (
+                      <button
+                        key={slot.slot_starts_at}
+                        onClick={() => setSelectedSlot(slot.slot_starts_at)}
+                        className={`py-2 border rounded-lg text-sm transition-all ${
+                          isActive
+                            ? 'border-[#B08A3E] bg-[#B08A3E] text-white'
+                            : 'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+                        }`}
+                      >
+                        {formatTimeShort(new Date(slot.slot_starts_at))}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Customer info */}
+          {selectedSlot && (
+            <div>
+              <SectionLabel>Kundeoplysninger</SectionLabel>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                    Navn
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                    Telefonnummer
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="12 34 56 78"
+                    inputMode="numeric"
+                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                    Note (valgfrit)
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="f.eks. vil betale med MobilePay"
+                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="px-3.5 py-2.5 bg-[#FCE8E8] border border-[#FCE8E8] rounded-lg">
+              <p className="text-[12px] text-[#9B2C2C]">{error}</p>
+            </div>
+          )}
+
+          {selectedSlot && customerName && customerPhone && (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="w-full py-3.5 bg-[#B08A3E] text-white text-sm font-medium tracking-[0.04em] rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-60"
+            >
+              {submitting ? 'Opretter…' : 'Opret booking'}
+            </button>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }

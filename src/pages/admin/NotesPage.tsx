@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import type { ShopNote } from '../../types/database'
+import { Card } from '../../components/admin/Card'
 
 export function NotesPage() {
   const { user, barberName } = useAuth()
@@ -55,62 +56,61 @@ export function NotesPage() {
     refresh()
   }
 
-  if (loading) return <p className="text-sm text-ink-subtle">Henter noter…</p>
+  if (loading) return <p className="text-sm text-[#8A8A8A]">Henter noter…</p>
 
   return (
-    <div>
-      <h1 className="font-serif text-xl text-ink mb-6">Salonnoter</h1>
+    <div className="max-w-2xl space-y-4">
+      <h1 className="font-serif text-[22px] text-ink">Salonnoter</h1>
 
-      <div className="bg-white border border-border rounded-sm p-4 mb-4">
+      <Card padding="sm">
         <div className="flex gap-2">
           <input
             type="text"
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note til alle i salonen…"
-            className="flex-1 border border-border rounded-sm px-3 py-2.5 text-sm outline-none focus:border-accent transition-colors"
+            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
           <button
             onClick={handleAdd}
             disabled={!newNote.trim()}
-            className="px-5 py-2.5 bg-accent text-white text-xs font-medium uppercase hover:bg-accent-deep transition-colors disabled:opacity-40"
+            className="px-5 py-2.5 bg-[#B08A3E] text-white text-[12px] font-medium rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-40"
           >
             Tilføj
           </button>
         </div>
-      </div>
+      </Card>
 
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end">
         <button
           onClick={() => setShowResolved(!showResolved)}
-          className="text-xs text-ink-subtle hover:text-ink transition-colors"
+          className="text-[12px] text-[#8A8A8A] hover:text-ink transition-colors"
         >
           {showResolved ? 'Skjul afsluttede' : 'Vis afsluttede'}
         </button>
       </div>
 
       {notes.length === 0 ? (
-        <div className="bg-white border border-border rounded-sm p-8 text-center">
-          <p className="text-sm text-ink-muted">
+        <Card padding="lg">
+          <p className="text-sm text-[#5F5E5A] text-center">
             {showResolved ? 'Ingen noter endnu.' : 'Ingen aktive noter.'}
           </p>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-2">
           {notes.map((note) => (
-            <div
+            <Card
               key={note.id}
-              className={`bg-white border rounded-sm p-4 ${
-                note.is_resolved ? 'border-border/50 opacity-60' : 'border-border'
-              }`}
+              padding="sm"
+              className={note.is_resolved ? 'opacity-60' : ''}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className={`text-sm ${note.is_resolved ? 'text-ink-muted line-through' : 'text-ink'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm ${note.is_resolved ? 'text-[#8A8A8A] line-through' : 'text-ink'}`}>
                     {note.body}
                   </p>
-                  <p className="text-[0.625rem] text-ink-subtle mt-1">
+                  <p className="text-[11px] text-[#8A8A8A] mt-1">
                     {note.author_name} ·{' '}
                     {new Date(note.created_at).toLocaleDateString('da-DK', {
                       day: 'numeric',
@@ -123,13 +123,13 @@ export function NotesPage() {
                 {!note.is_resolved && (
                   <button
                     onClick={() => handleResolve(note.id)}
-                    className="ml-3 text-xs text-accent-deep hover:text-ink transition-colors whitespace-nowrap"
+                    className="text-[12px] text-[#B08A3E] hover:text-[#8C6A28] transition-colors whitespace-nowrap"
                   >
                     ✓ Afslut
                   </button>
                 )}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

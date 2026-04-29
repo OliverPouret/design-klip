@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useBarbers } from '../../hooks/useBarbers'
 import { isoDate } from '../../lib/danishDates'
+import { Card } from '../../components/admin/Card'
 
 interface BookingBlock {
   id: string
@@ -150,157 +151,163 @@ export function TodayPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-ink-subtle">Henter program…</p>
+  if (loading) return <p className="text-sm text-[#8A8A8A]">Henter program…</p>
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Business insights */}
-      <div className="bg-white border border-border rounded-sm p-4 mb-4">
+      <Card padding="sm">
         {!insights ? (
           <button
             onClick={handleGenerateInsights}
             disabled={insightsLoading}
-            className="flex items-center gap-2 text-sm text-accent-deep hover:text-ink transition-colors disabled:opacity-60"
+            className="flex items-center gap-2 text-sm text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
           >
             {insightsLoading ? 'Analyserer…' : '📊 Forretningsoverblik'}
           </button>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs tracking-[0.08em] uppercase text-ink-subtle">Forretningsoverblik</p>
-              <button onClick={() => setInsights(null)} className="text-[0.625rem] text-ink-subtle hover:text-ink">
+              <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">Forretningsoverblik</p>
+              <button onClick={() => setInsights(null)} className="text-[11px] text-[#8A8A8A] hover:text-ink">
                 Luk
               </button>
             </div>
             <div className="text-sm text-ink leading-relaxed whitespace-pre-line">{insights}</div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Day navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={prevDay} className="text-sm text-ink-muted hover:text-ink transition-colors">
-          ← Forrige
-        </button>
-        <div className="text-center">
-          <h1 className="font-serif text-lg text-ink">
-            {WEEKDAYS[viewDate.getDay()]} d. {viewDate.getDate()}.{' '}
-            {viewDate.toLocaleDateString('da-DK', { month: 'long' })}
-          </h1>
-          {!isToday && (
-            <button onClick={goToday} className="text-xs text-accent-deep hover:text-ink mt-1">
-              I dag
-            </button>
-          )}
+      <Card padding="sm">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={prevDay}
+            className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
+          >
+            ← Forrige
+          </button>
+          <div className="text-center">
+            <h1 className="font-serif text-[18px] text-ink">
+              {WEEKDAYS[viewDate.getDay()]} d. {viewDate.getDate()}.{' '}
+              {viewDate.toLocaleDateString('da-DK', { month: 'long' })}
+            </h1>
+            {!isToday && (
+              <button onClick={goToday} className="text-[11px] text-[#B08A3E] hover:text-[#8C6A28] mt-0.5">
+                I dag
+              </button>
+            )}
+          </div>
+          <button
+            onClick={nextDay}
+            className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
+          >
+            Næste →
+          </button>
         </div>
-        <button onClick={nextDay} className="text-sm text-ink-muted hover:text-ink transition-colors">
-          Næste →
-        </button>
-      </div>
+      </Card>
 
       {/* Schedule grid */}
-      <div className="bg-white border border-border rounded-sm">
-        <div>
-          {/* Barber headers */}
-          <div
-            className="grid border-b border-border"
-            style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
-          >
-            <div className="p-2 bg-surface" />
-            {barbers.map((barber) => {
-              const hours = barberHours[barber.id]
-              const isOff = !hours
-              return (
-                <div
-                  key={barber.id}
-                  className={`p-2 text-center border-l border-border ${isOff ? 'bg-border/20' : 'bg-surface'}`}
-                >
-                  <p className="text-xs font-medium text-ink">{barber.display_name}</p>
-                  {isOff && <p className="text-[0.625rem] text-ink-subtle">Fri i dag</p>}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Timeline body */}
-          <div className="grid" style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}>
-            {/* Time labels column */}
-            <div className="relative" style={{ height: `${totalHeight}px` }}>
-              {timeLabels.map((label, i) => (
-                <div
-                  key={label}
-                  className="absolute right-0 pr-2 text-right"
-                  style={{ top: `${i * SLOT_HEIGHT}px`, height: `${SLOT_HEIGHT}px`, lineHeight: `${SLOT_HEIGHT}px` }}
-                >
-                  <span className="text-[0.6875rem] text-ink-subtle">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Barber columns */}
-            {barbers.map((barber) => {
-              const hours = barberHours[barber.id]
-              const isOff = !hours
-              const barberBookings = bookings.filter((b) => b.barber_id === barber.id)
-
-              return (
-                <div
-                  key={barber.id}
-                  className={`relative border-l border-border ${isOff ? 'bg-border/10' : ''}`}
-                  style={{ height: `${totalHeight}px` }}
-                >
-                  {/* Grid lines */}
-                  {timeLabels.map((_, i) => (
-                    <div
-                      key={`grid-${barber.id}-${i}`}
-                      className="absolute left-0 right-0 border-b border-border/30"
-                      style={{ top: `${i * SLOT_HEIGHT}px` }}
-                    />
-                  ))}
-
-                  {/* Booking blocks */}
-                  {!isOff &&
-                    barberBookings.map((booking) => {
-                      const style = getBlockStyle(booking)
-                      const hasNote = noteFlags[booking.customer.id]
-                      return (
-                        <Link
-                          key={booking.id}
-                          to={`/admin/booking/${booking.id}`}
-                          className="absolute left-1 right-1 rounded-sm overflow-hidden hover:ring-1 hover:ring-accent transition-all"
-                          style={{ top: style.top, height: style.height, minHeight: '28px' }}
-                        >
-                          <div
-                            className="h-full border-l-[3px] px-2 py-1 bg-surface"
-                            style={{ borderColor: barber.profile_color || '#B08A3E' }}
-                          >
-                            <div className="flex items-center gap-1">
-                              <span className="text-[0.6875rem] font-medium text-ink truncate">
-                                {booking.customer.full_name}
-                              </span>
-                              {hasNote && (
-                                <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[0.5rem] flex items-center justify-center font-bold">
-                                  !
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[0.625rem] text-ink-muted truncate">
-                              {booking.service.name_da}
-                              {booking.source === 'phone' && ' · 📞'}
-                            </p>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                </div>
-              )
-            })}
-          </div>
+      <Card padding="none">
+        {/* Barber headers */}
+        <div
+          className="grid border-b border-[#E8E8E5] rounded-t-xl overflow-hidden"
+          style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
+        >
+          <div className="p-2.5 bg-[#FAFAF8]" />
+          {barbers.map((barber) => {
+            const hours = barberHours[barber.id]
+            const isOff = !hours
+            return (
+              <div
+                key={barber.id}
+                className={`p-2.5 text-center border-l border-[#E8E8E5] ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
+              >
+                <p className="text-[13px] font-medium text-ink">{barber.display_name}</p>
+                {isOff && <p className="text-[11px] text-[#8A8A8A] mt-0.5">Fri i dag</p>}
+              </div>
+            )
+          })}
         </div>
-      </div>
+
+        {/* Timeline body */}
+        <div className="grid rounded-b-xl overflow-hidden" style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}>
+          {/* Time labels column */}
+          <div className="relative" style={{ height: `${totalHeight}px` }}>
+            {timeLabels.map((label, i) => (
+              <div
+                key={label}
+                className="absolute right-0 pr-2 text-right"
+                style={{ top: `${i * SLOT_HEIGHT}px`, height: `${SLOT_HEIGHT}px`, lineHeight: `${SLOT_HEIGHT}px` }}
+              >
+                <span className="text-[11px] text-[#8A8A8A]">{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Barber columns */}
+          {barbers.map((barber) => {
+            const hours = barberHours[barber.id]
+            const isOff = !hours
+            const barberBookings = bookings.filter((b) => b.barber_id === barber.id)
+
+            return (
+              <div
+                key={barber.id}
+                className={`relative border-l border-[#E8E8E5] ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
+                style={{ height: `${totalHeight}px` }}
+              >
+                {/* Grid lines — barely visible */}
+                {timeLabels.map((_, i) => (
+                  <div
+                    key={`grid-${barber.id}-${i}`}
+                    className="absolute left-0 right-0"
+                    style={{ top: `${i * SLOT_HEIGHT}px`, borderBottom: '1px solid rgba(0,0,0,0.04)' }}
+                  />
+                ))}
+
+                {/* Booking blocks */}
+                {!isOff &&
+                  barberBookings.map((booking) => {
+                    const style = getBlockStyle(booking)
+                    const hasNote = noteFlags[booking.customer.id]
+                    return (
+                      <Link
+                        key={booking.id}
+                        to={`/admin/booking/${booking.id}`}
+                        className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/30 transition-all"
+                        style={{ top: style.top, height: style.height, minHeight: '32px' }}
+                      >
+                        <div
+                          className="h-full border-l-[3px] px-2.5 py-1.5 bg-[#FAFAF8]"
+                          style={{ borderColor: barber.profile_color || '#B08A3E' }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12px] font-medium text-ink truncate">
+                              {booking.customer.full_name}
+                            </span>
+                            {hasNote && (
+                              <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#9B2C2C] text-white text-[8px] flex items-center justify-center font-bold leading-none">
+                                !
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#5F5E5A] truncate mt-0.5">
+                            {booking.service.name_da}
+                            {booking.source === 'phone' && ' · 📞'}
+                          </p>
+                        </div>
+                      </Link>
+                    )
+                  })}
+              </div>
+            )
+          })}
+        </div>
+      </Card>
 
       {/* Summary */}
-      <div className="flex items-center justify-between mt-3 text-xs text-ink-subtle">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white/60 rounded-lg text-[12px] text-[#5F5E5A]">
         <span>{bookings.filter((b) => b.status !== 'cancelled').length} bookinger</span>
         <span>{bookings.filter((b) => b.source === 'phone').length} telefonbookinger</span>
       </div>
