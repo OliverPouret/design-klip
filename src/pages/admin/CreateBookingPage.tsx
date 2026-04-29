@@ -14,7 +14,7 @@ interface Slot {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-b border-[#F0F0ED] pb-2 mb-3">
+    <div className="border-b border-gray-100 pb-2 mb-3">
       <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">{children}</p>
     </div>
   )
@@ -23,7 +23,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 const SELECT_BTN =
   'text-left px-3.5 py-2.5 border rounded-lg text-sm transition-all'
 const SELECT_DEFAULT =
-  'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+  'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
 const SELECT_ACTIVE =
   'border-[#B08A3E] bg-[#B08A3E]/[0.06] text-ink font-medium'
 
@@ -179,7 +179,7 @@ export function CreateBookingPage() {
                       className={`px-3 py-2 border rounded-lg text-[12px] transition-all ${
                         isActive
                           ? 'border-[#B08A3E] bg-[#B08A3E] text-white'
-                          : 'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+                          : 'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
                       }`}
                     >
                       <div className="font-medium">{d.toLocaleDateString('da-DK', { weekday: 'short' })}</div>
@@ -212,7 +212,7 @@ export function CreateBookingPage() {
                         className={`py-2 border rounded-lg text-sm transition-all ${
                           isActive
                             ? 'border-[#B08A3E] bg-[#B08A3E] text-white'
-                            : 'border-[#E8E8E5] bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
+                            : 'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
                         }`}
                       >
                         {formatTimeShort(new Date(slot.slot_starts_at))}
@@ -237,7 +237,7 @@ export function CreateBookingPage() {
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                    className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
                   />
                 </div>
                 <div>
@@ -250,7 +250,7 @@ export function CreateBookingPage() {
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="12 34 56 78"
                     inputMode="numeric"
-                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                    className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
                   />
                 </div>
                 <div>
@@ -262,7 +262,7 @@ export function CreateBookingPage() {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="f.eks. vil betale med MobilePay"
-                    className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                    className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
                   />
                 </div>
               </div>

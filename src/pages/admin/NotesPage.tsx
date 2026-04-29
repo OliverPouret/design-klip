@@ -69,7 +69,7 @@ export function NotesPage() {
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note til alle i salonen…"
-            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+            className="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
           <button

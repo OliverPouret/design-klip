@@ -1,6 +1,13 @@
+import { useState } from 'react'
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 
+const ICON_SCHEDULE = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
 const ICON_CALENDAR = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -24,7 +31,7 @@ const ICON_USERS = (
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 )
-const ICON_CLIPBOARD = (
+const ICON_NOTES = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
     <rect x="8" y="2" width="8" height="4" rx="1" />
@@ -37,22 +44,48 @@ const ICON_LOGOUT = (
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 )
+const ICON_MENU = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+)
+const ICON_X = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
 
 const NAV_ITEMS = [
-  { path: '/admin/i-dag', label: 'I dag', icon: ICON_CALENDAR },
+  { path: '/admin/i-dag', label: 'I dag', icon: ICON_SCHEDULE },
+  { path: '/admin/kalender', label: 'Kalender', icon: ICON_CALENDAR },
   { path: '/admin/opret-booking', label: 'Opret booking', icon: ICON_PLUS },
   { path: '/admin/kunder', label: 'Kunder', icon: ICON_USERS },
-  { path: '/admin/noter', label: 'Noter', icon: ICON_CLIPBOARD },
+  { path: '/admin/noter', label: 'Noter', icon: ICON_NOTES },
 ]
+
+function getPageTitle(pathname: string): string {
+  if (pathname === '/admin' || pathname === '/admin/i-dag') return 'I dag'
+  if (pathname.startsWith('/admin/kalender')) return 'Kalender'
+  if (pathname.startsWith('/admin/opret-booking')) return 'Opret booking'
+  if (pathname.startsWith('/admin/kunder/')) return 'Kunde'
+  if (pathname.startsWith('/admin/kunder')) return 'Kunder'
+  if (pathname.startsWith('/admin/booking/')) return 'Booking'
+  if (pathname.startsWith('/admin/noter')) return 'Salonnoter'
+  return 'Admin'
+}
 
 export function AdminLayout() {
   const { user, role, barberName, loading, signOut } = useAuth()
   const location = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F6F3]">
-        <p className="text-sm text-[#8A8A8A]">Henter…</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+        <p className="text-sm text-gray-500">Henter…</p>
       </div>
     )
   }
@@ -64,61 +97,47 @@ export function AdminLayout() {
   const isActive = (path: string) =>
     location.pathname === path || (path === '/admin/i-dag' && location.pathname === '/admin')
 
+  const pageTitle = getPageTitle(location.pathname)
+
+  const navLink = (item: (typeof NAV_ITEMS)[number], onClick?: () => void) => {
+    const active = isActive(item.path)
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={onClick}
+        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-colors ${
+          active
+            ? 'bg-[#B08A3E]/20 text-[#D4A84B] font-medium'
+            : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+        }`}
+      >
+        <span className="flex-shrink-0">{item.icon}</span>
+        {item.label}
+      </Link>
+    )
+  }
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#F6F6F3]">
-      {/* Sidebar — desktop vertical / mobile top bar */}
-      <aside className="bg-[#111113] text-[#FAFAF8] md:w-60 md:min-h-screen flex-shrink-0 flex md:flex-col">
-        {/* Logo + user — desktop only at top */}
-        <div className="hidden md:block px-4 py-5 border-b border-white/[0.06]">
-          <Link to="/" className="block mb-3">
-            <img src="/logo.png" alt="Design Klip" className="h-9 w-auto opacity-90" />
-          </Link>
-          <p className="text-[13px] text-[#FAFAF8]">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#F9FAFB]">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex md:flex-col bg-[#1A1A1A] text-white w-[220px] min-h-screen flex-shrink-0">
+        <div className="px-4 py-5 border-b border-white/[0.08]">
+          <p className="font-serif text-[17px] tracking-wide">Design Klip</p>
+          <p className="text-[12px] text-white/60 mt-1">
             {barberName ?? 'Admin'}
-            {role === 'super_admin' && (
-              <span className="text-[#8A8A8A] font-normal"> (ejer)</span>
-            )}
+            {role === 'super_admin' && ' · Ejer'}
           </p>
         </div>
 
-        {/* Mobile compact header */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Design Klip" className="h-7 w-auto opacity-90" />
-          </Link>
-          <p className="text-[12px] text-[#8A8A8A]">{barberName ?? 'Admin'}</p>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex md:flex-col gap-1 p-2 md:p-3 overflow-x-auto md:overflow-visible">
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(item.path)
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] whitespace-nowrap transition-colors relative ${
-                  active
-                    ? 'bg-[rgba(176,138,62,0.12)] text-[#B08A3E] font-medium'
-                    : 'text-[#FAFAF8]/85 hover:bg-white/[0.04] hover:text-[#FAFAF8]'
-                }`}
-                style={{ fontWeight: active ? 500 : 450 }}
-              >
-                {active && (
-                  <span className="hidden md:block absolute left-0 top-1.5 bottom-1.5 w-[2px] bg-[#B08A3E] rounded-r" />
-                )}
-                <span className="flex-shrink-0">{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 flex flex-col gap-1 p-3">
+          {NAV_ITEMS.map((item) => navLink(item))}
         </nav>
 
-        {/* Spacer + log-out — desktop only */}
-        <div className="hidden md:block mt-auto p-3 border-t border-white/[0.06]">
+        <div className="p-3 border-t border-white/[0.08]">
           <button
             onClick={signOut}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] text-[#8A8A8A] hover:text-[#FAFAF8] hover:bg-white/[0.04] transition-colors"
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-[13px] text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
           >
             <span className="flex-shrink-0">{ICON_LOGOUT}</span>
             Log ud
@@ -126,9 +145,48 @@ export function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 min-h-screen">
-        <div className="p-4 md:p-8">
+      {/* Mobile top bar */}
+      <header className="md:hidden sticky top-0 z-30 bg-[#1A1A1A] text-white px-4 py-3 flex items-center justify-between border-b border-white/[0.08]">
+        <p className="font-serif text-[16px]">Design Klip</p>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? 'Luk menu' : 'Åbn menu'}
+          className="text-white/85 hover:text-white p-1"
+        >
+          {mobileOpen ? ICON_X : ICON_MENU}
+        </button>
+      </header>
+
+      {/* Mobile dropdown */}
+      {mobileOpen && (
+        <div className="md:hidden bg-[#1A1A1A] text-white border-b border-white/[0.08] px-3 py-2 space-y-1">
+          <div className="px-3 py-2 text-[12px] text-white/60">
+            {barberName ?? 'Admin'}
+            {role === 'super_admin' && ' · Ejer'}
+          </div>
+          {NAV_ITEMS.map((item) => navLink(item, () => setMobileOpen(false)))}
+          <button
+            onClick={() => {
+              setMobileOpen(false)
+              signOut()
+            }}
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-[13px] text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
+          >
+            <span className="flex-shrink-0">{ICON_LOGOUT}</span>
+            Log ud
+          </button>
+        </div>
+      )}
+
+      {/* Main */}
+      <main className="flex-1 min-h-screen flex flex-col">
+        {/* Page title bar */}
+        <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5">
+          <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-4 md:p-6">
           <Outlet />
         </div>
       </main>

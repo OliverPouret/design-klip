@@ -8,11 +8,9 @@ interface CardProps {
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
   const padClass =
-    padding === 'none' ? '' : padding === 'sm' ? 'p-4' : padding === 'lg' ? 'p-8' : 'p-6'
+    padding === 'none' ? '' : padding === 'sm' ? 'p-4' : padding === 'lg' ? 'p-6' : 'p-5'
   return (
-    <div
-      className={`bg-white border border-[#E8E8E5] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${padClass} ${className}`}
-    >
+    <div className={`bg-white border border-gray-200 rounded-lg ${padClass} ${className}`}>
       {children}
     </div>
   )

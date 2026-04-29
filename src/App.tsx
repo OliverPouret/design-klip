@@ -10,6 +10,7 @@ import { TermsPage } from './pages/TermsPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { LoginPage } from './pages/admin/LoginPage'
 import { TodayPage } from './pages/admin/TodayPage'
+import { CalendarPage } from './pages/admin/CalendarPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
 import { CustomersPage } from './pages/admin/CustomersPage'
 import { CustomerDetailPage } from './pages/admin/CustomerDetailPage'
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<TodayPage />} />
             <Route path="i-dag" element={<TodayPage />} />
+            <Route path="kalender" element={<CalendarPage />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
             <Route path="kunder/:customerId" element={<CustomerDetailPage />} />

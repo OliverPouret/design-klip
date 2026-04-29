@@ -23,7 +23,16 @@ const WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag',
 
 export function TodayPage() {
   const { barbers } = useBarbers()
-  const [viewDate, setViewDate] = useState(() => new Date())
+  const [viewDate, setViewDate] = useState(() => {
+    // Pick up date from CalendarPage if user navigated from there
+    const stored = sessionStorage.getItem('admin_view_date')
+    if (stored) {
+      sessionStorage.removeItem('admin_view_date')
+      const [y, m, d] = stored.split('-').map((n) => parseInt(n, 10))
+      if (y && m && d) return new Date(y, m - 1, d)
+    }
+    return new Date()
+  })
   const [bookings, setBookings] = useState<BookingBlock[]>([])
   const [barberHours, setBarberHours] = useState<Record<string, { opens: string; closes: string } | null>>({})
   const [noteFlags, setNoteFlags] = useState<Record<string, boolean>>({})
@@ -211,7 +220,7 @@ export function TodayPage() {
       <Card padding="none">
         {/* Barber headers */}
         <div
-          className="grid border-b border-[#E8E8E5] rounded-t-xl overflow-hidden"
+          className="grid border-b border-gray-200 rounded-t-lg overflow-hidden"
           style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
         >
           <div className="p-2.5 bg-[#FAFAF8]" />
@@ -221,7 +230,7 @@ export function TodayPage() {
             return (
               <div
                 key={barber.id}
-                className={`p-2.5 text-center border-l border-[#E8E8E5] ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
+                className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
               >
                 <p className="text-[13px] font-medium text-ink">{barber.display_name}</p>
                 {isOff && <p className="text-[11px] text-[#8A8A8A] mt-0.5">Fri i dag</p>}
@@ -231,7 +240,7 @@ export function TodayPage() {
         </div>
 
         {/* Timeline body */}
-        <div className="grid rounded-b-xl overflow-hidden" style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}>
+        <div className="grid rounded-b-lg overflow-x-auto overflow-y-hidden" style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}>
           {/* Time labels column */}
           <div className="relative" style={{ height: `${totalHeight}px` }}>
             {timeLabels.map((label, i) => (
@@ -254,7 +263,7 @@ export function TodayPage() {
             return (
               <div
                 key={barber.id}
-                className={`relative border-l border-[#E8E8E5] ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
+                className={`relative border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
                 style={{ height: `${totalHeight}px` }}
               >
                 {/* Grid lines — barely visible */}

@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth'
 import { formatDateLong, formatTime } from '../../lib/danishDates'
 import { formatDKK } from '../../types/database'
 import { Card } from '../../components/admin/Card'
+import { StatusBadge } from '../../components/admin/StatusBadge'
 
 interface BookingDetail {
   id: string
@@ -28,26 +29,6 @@ interface CustNote {
   tags: string[]
   author_id: string | null
   created_at: string
-}
-
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  confirmed: { bg: '#E6F4EA', text: '#1B7340', label: 'Bekræftet' },
-  pending: { bg: '#FEF7E0', text: '#8A6D1B', label: 'Afventer' },
-  completed: { bg: '#F0F0ED', text: '#5F5E5A', label: 'Fuldført' },
-  no_show: { bg: '#FCE8E8', text: '#9B2C2C', label: 'Udeblevet' },
-  cancelled: { bg: '#F0F0ED', text: '#8A8A8A', label: 'Afbestilt' },
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_STYLES[status] ?? { bg: '#F0F0ED', text: '#8A8A8A', label: status }
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-[0.08em] uppercase"
-      style={{ backgroundColor: s.bg, color: s.text }}
-    >
-      {s.label}
-    </span>
-  )
 }
 
 export function BookingDetailPage() {
@@ -217,7 +198,7 @@ export function BookingDetailPage() {
               value={cutDetails}
               onChange={(e) => setCutDetails(e.target.value)}
               placeholder="f.eks. fade 2, lang top, skæg trimmet kort"
-              className="w-full border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+              className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             />
           </div>
 
@@ -239,7 +220,7 @@ export function BookingDetailPage() {
             <button
               onClick={() => handleStatusChange('cancelled')}
               disabled={actionLoading}
-              className="flex-1 py-3 bg-white border border-[#E8E8E5] text-[#5F5E5A] text-[13px] font-medium tracking-[0.04em] rounded-lg hover:bg-[#F6F6F3] transition-colors disabled:opacity-60"
+              className="flex-1 py-3 bg-white border border-gray-200 text-[#5F5E5A] text-[13px] font-medium tracking-[0.04em] rounded-lg hover:bg-[#F6F6F3] transition-colors disabled:opacity-60"
             >
               Afbestil
             </button>
@@ -262,7 +243,7 @@ export function BookingDetailPage() {
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note om denne kunde…"
-            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+            className="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
           />
           <button
@@ -279,7 +260,7 @@ export function BookingDetailPage() {
         ) : (
           <div className="space-y-3">
             {custNotes.map((note) => (
-              <div key={note.id} className="border-b border-[#F0F0ED] pb-3 last:border-0 last:pb-0">
+              <div key={note.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
                 <p className="text-sm text-ink">{note.body}</p>
                 <p className="text-[11px] text-[#8A8A8A] mt-1">
                   {new Date(note.created_at).toLocaleDateString('da-DK')}

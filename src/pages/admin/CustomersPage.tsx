@@ -65,7 +65,7 @@ export function CustomersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Søg på navn eller telefonnummer…"
-            className="w-full border border-[#E8E8E5] rounded-lg pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+            className="w-full border border-gray-200 rounded-lg pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
           />
         </div>
       </Card>
@@ -78,12 +78,12 @@ export function CustomersPage() {
         </Card>
       ) : (
         <Card padding="none">
-          <div className="divide-y divide-[#F0F0ED]">
+          <div className="divide-y divide-gray-100">
             {filtered.map((customer) => (
               <Link
                 key={customer.id}
                 to={`/admin/kunder/${customer.id}`}
-                className="block px-5 py-3.5 hover:bg-[#FAFAF8] transition-colors first:rounded-t-xl last:rounded-b-xl"
+                className="block px-5 py-3.5 hover:bg-[#FAFAF8] transition-colors first:rounded-t-lg last:rounded-b-lg"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">

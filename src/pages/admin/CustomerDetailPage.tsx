@@ -245,7 +245,7 @@ export function CustomerDetailPage() {
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
             placeholder="Skriv en note om denne kunde…"
-            className="flex-1 border border-[#E8E8E5] rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+            className="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
             onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
           />
           <button
@@ -262,7 +262,7 @@ export function CustomerDetailPage() {
         ) : (
           <div className="space-y-3">
             {notes.map((note) => (
-              <div key={note.id} className="border-b border-[#F0F0ED] pb-3 last:border-0 last:pb-0">
+              <div key={note.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
                 <p className="text-sm text-ink">{note.body}</p>
                 <p className="text-[11px] text-[#8A8A8A] mt-1">
                   {new Date(note.created_at).toLocaleDateString('da-DK', {
