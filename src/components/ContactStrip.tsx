@@ -1,4 +1,5 @@
 import { useSettings } from '../hooks/useSettings'
+import { Reveal } from './Reveal'
 
 export function ContactStrip() {
   const { settings } = useSettings()
@@ -17,23 +18,25 @@ export function ContactStrip() {
   return (
     <section id="kontakt" className="border-t border-border">
       {/* Address + hours summary */}
-      <div className="py-8 px-5 text-center">
-        {address && (
-          <p className="text-sm text-ink font-medium mb-1">
-            {fullAddress}
-          </p>
-        )}
-        {phone && (
-          <p className="text-sm text-ink-muted mb-1">
-            <a href={`tel:${phone}`} className="hover:text-accent-deep transition-colors">
-              {phone.replace('+45', '+45 ')}
-            </a>
-          </p>
-        )}
-        {hoursLine && (
-          <p className="text-xs text-ink-subtle">{hoursLine}</p>
-        )}
-      </div>
+      <Reveal>
+        <div className="py-8 px-5 text-center">
+          {address && (
+            <p className="text-sm text-ink font-medium mb-1">
+              {fullAddress}
+            </p>
+          )}
+          {phone && (
+            <p className="text-sm text-ink-muted mb-1">
+              <a href={`tel:${phone}`} className="hover:text-accent-deep transition-colors">
+                {phone.replace('+45', '+45 ')}
+              </a>
+            </p>
+          )}
+          {hoursLine && (
+            <p className="text-xs text-ink-subtle">{hoursLine}</p>
+          )}
+        </div>
+      </Reveal>
 
       {/* Embedded map */}
       <div className="relative w-full h-[280px] md:h-[360px] bg-surface">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useBarbers } from '../hooks/useBarbers'
+import { Reveal } from './Reveal'
 
 export function BarberProfiles() {
   const { barbers, loading } = useBarbers()
@@ -18,35 +19,37 @@ export function BarberProfiles() {
 
   return (
     <section id="om-os" className="py-10 px-5 bg-surface">
-      <p className="text-center text-[0.6875rem] tracking-[0.14em] uppercase text-ink-subtle mb-1">
-        Om os
-      </p>
-      <h2 className="text-center font-serif text-display-md text-ink mb-6">
-        Vores frisører
-      </h2>
+      <Reveal>
+        <p className="text-center text-[0.6875rem] tracking-[0.14em] uppercase text-ink-subtle mb-1">
+          Om os
+        </p>
+        <h2 className="text-center font-serif text-display-md text-ink mb-6">
+          Vores frisører
+        </h2>
 
-      {/* Barber portrait grid */}
-      <div className="flex justify-center gap-3 md:gap-4 max-w-md mx-auto mb-6">
-        {barbers.map((barber) => (
-          <button
-            key={barber.id}
-            onClick={() => setSelectedSlug(selectedSlug === barber.slug ? null : barber.slug)}
-            className={`flex flex-col items-center flex-1 max-w-[130px] transition-all duration-200 ${
-              selectedSlug === barber.slug ? 'ring-2 ring-accent' : ''
-            }`}
-          >
-            {/* Photo placeholder */}
-            <div className="w-full aspect-[3/4] bg-border/30 flex items-center justify-center mb-2">
-              {barber.photo_url ? (
-                <img src={barber.photo_url} alt={barber.display_name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs text-ink-subtle">Foto</span>
-              )}
-            </div>
-            <span className="text-sm font-medium text-ink">{barber.display_name}</span>
-          </button>
-        ))}
-      </div>
+        {/* Barber portrait grid */}
+        <div className="flex justify-center gap-3 md:gap-4 max-w-md mx-auto mb-6">
+          {barbers.map((barber) => (
+            <button
+              key={barber.id}
+              onClick={() => setSelectedSlug(selectedSlug === barber.slug ? null : barber.slug)}
+              className={`flex flex-col items-center flex-1 max-w-[130px] transition-all duration-200 ${
+                selectedSlug === barber.slug ? 'ring-2 ring-accent' : ''
+              }`}
+            >
+              {/* Photo placeholder */}
+              <div className="w-full aspect-[3/4] bg-border/30 flex items-center justify-center mb-2">
+                {barber.photo_url ? (
+                  <img src={barber.photo_url} alt={barber.display_name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs text-ink-subtle">Foto</span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-ink">{barber.display_name}</span>
+            </button>
+          ))}
+        </div>
+      </Reveal>
 
       {/* Expanded bio */}
       {selected && (

@@ -5,7 +5,6 @@ import { PriceList } from '../components/PriceList'
 import { BarberProfiles } from '../components/BarberProfiles'
 import { ContactStrip } from '../components/ContactStrip'
 import { Footer } from '../components/Footer'
-import { Reveal } from '../components/Reveal'
 
 export function HomePage() {
   return (
@@ -15,11 +14,11 @@ export function HomePage() {
 
       {/* Full-width sections with small gaps so the fixed background shows between them */}
       <div className="relative space-y-3 pb-12">
-        <Reveal><div className="bg-white"><Carousel /></div></Reveal>
-        <Reveal><div className="bg-white"><PriceList /></div></Reveal>
-        <Reveal><BarberProfiles /></Reveal>
-        <Reveal><div className="bg-white"><ContactStrip /></div></Reveal>
-        <Reveal><Footer /></Reveal>
+        <div className="bg-white"><Carousel /></div>
+        <div className="bg-white"><PriceList /></div>
+        <BarberProfiles />
+        <div className="bg-white"><ContactStrip /></div>
+        <Footer />
       </div>
     </div>
   )
