@@ -23,10 +23,12 @@ interface BookingJoined {
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin()
 
-  // Find bookings starting in 23.5–24.5 hours that haven't been reminded
+  // Daily cron (Hobby tier): widen to 12–36h ahead so every next-day
+  // appointment gets one reminder ~12–36h in advance.
+  // reminder_sent_at flag prevents double-sends.
   const now = new Date()
-  const from = new Date(now.getTime() + 23.5 * 60 * 60 * 1000)
-  const to = new Date(now.getTime() + 24.5 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() + 12 * 60 * 60 * 1000)
+  const to = new Date(now.getTime() + 36 * 60 * 60 * 1000)
 
   const { data: bookingsRaw, error } = await supabase
     .from('bookings')
