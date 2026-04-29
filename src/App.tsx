@@ -1,24 +1,48 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './lib/auth'
 import { FixedBackground } from './components/FixedBackground'
 import { HomePage } from './pages/HomePage'
-import { PrivacyPage } from './pages/PrivacyPage'
-import { TermsPage } from './pages/TermsPage'
 import { BookingPage } from './pages/BookingPage'
 import { ConfirmationPage } from './pages/ConfirmationPage'
 import { CancelPage } from './pages/CancelPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { TermsPage } from './pages/TermsPage'
+import { AdminLayout } from './pages/admin/AdminLayout'
+import { LoginPage } from './pages/admin/LoginPage'
+import { TodayPage } from './pages/admin/TodayPage'
+import { CreateBookingPage } from './pages/admin/CreateBookingPage'
+import { CustomersPage } from './pages/admin/CustomersPage'
+import { CustomerDetailPage } from './pages/admin/CustomerDetailPage'
+import { NotesPage } from './pages/admin/NotesPage'
+import { BookingDetailPage } from './pages/admin/BookingDetailPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <FixedBackground />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/bestil" element={<BookingPage />} />
-        <Route path="/bestil/bekraeftet/:shortCode" element={<ConfirmationPage />} />
-        <Route path="/afbestil/:token" element={<CancelPage />} />
-        <Route path="/privatlivspolitik" element={<PrivacyPage />} />
-        <Route path="/handelsbetingelser" element={<TermsPage />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <FixedBackground />
+        <Routes>
+          {/* Public */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/bestil" element={<BookingPage />} />
+          <Route path="/bestil/bekraeftet/:shortCode" element={<ConfirmationPage />} />
+          <Route path="/afbestil/:token" element={<CancelPage />} />
+          <Route path="/privatlivspolitik" element={<PrivacyPage />} />
+          <Route path="/handelsbetingelser" element={<TermsPage />} />
+
+          {/* Admin */}
+          <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<TodayPage />} />
+            <Route path="i-dag" element={<TodayPage />} />
+            <Route path="opret-booking" element={<CreateBookingPage />} />
+            <Route path="kunder" element={<CustomersPage />} />
+            <Route path="kunder/:customerId" element={<CustomerDetailPage />} />
+            <Route path="noter" element={<NotesPage />} />
+            <Route path="booking/:bookingId" element={<BookingDetailPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }

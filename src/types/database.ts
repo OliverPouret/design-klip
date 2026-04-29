@@ -180,6 +180,17 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface ShopNote {
+  id: string;
+  body: string;
+  author_id: string | null;
+  author_name: string | null;
+  is_resolved: boolean;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  created_at: string;
+}
+
 // Utility: format øre to DKK string
 export function formatDKK(ore: number): string {
   return `${(ore / 100).toFixed(0)} kr`;

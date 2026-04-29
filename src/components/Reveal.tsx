@@ -16,7 +16,7 @@ export function Reveal({ children, delay = 0, className = '' }: RevealProps) {
 
     // Fallback: if IntersectionObserver isn't supported, just show
     if (typeof IntersectionObserver === 'undefined') {
-      setVisible(true)
+      queueMicrotask(() => setVisible(true))
       return
     }
 
