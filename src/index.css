@@ -5,14 +5,70 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
-    background-color: #F4ECD8;
-    color: #2A2118;
+    background-color: #FFFFFF;
+    color: #1A1A1A;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
   }
 
   /* Tabular nums on time displays */
   .font-tnum {
     font-feature-settings: 'tnum';
   }
+}
+
+@keyframes marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+@media (min-width: 768px) {
+  .animate-marquee {
+    animation-duration: 28s;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 700ms ease-out, transform 700ms ease-out;
+  will-change: opacity, transform;
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+[id] {
+  scroll-margin-top: 80px;
+}
+
+html {
+  scroll-behavior: smooth;
 }
