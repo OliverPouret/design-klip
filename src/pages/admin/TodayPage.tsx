@@ -199,8 +199,8 @@ export function TodayPage() {
       </div>
 
       {/* Schedule grid */}
-      <div className="bg-white border border-border rounded-sm overflow-x-auto">
-        <div className="min-w-[500px]">
+      <div className="bg-white border border-border rounded-sm">
+        <div>
           {/* Barber headers */}
           <div
             className="grid border-b border-border"

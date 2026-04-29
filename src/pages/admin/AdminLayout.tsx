@@ -72,7 +72,7 @@ export function AdminLayout() {
 
       {/* Main content */}
       <main className="flex-1 bg-surface min-h-screen">
-        <div className="p-4 md:p-6 max-w-4xl">
+        <div className="p-4 md:p-6">
           <Outlet />
         </div>
       </main>
