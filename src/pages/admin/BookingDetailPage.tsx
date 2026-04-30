@@ -91,11 +91,10 @@ export function BookingDetailPage() {
       .update({ status: 'completed' })
       .eq('id', booking.id)
 
-    fetch('/api/generate-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId: booking.customer.id }),
-    }).catch(() => {})
+    // Fire-and-forget: regenerate the cached AI profile after the note is saved
+    supabase.functions
+      .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
+      .catch(console.error)
 
     setBooking({ ...booking, status: 'completed' })
     setActionLoading(false)
@@ -131,11 +130,10 @@ export function BookingDetailPage() {
       setCustNotes([data as CustNote, ...custNotes])
       setNewNote('')
 
-      fetch('/api/generate-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: booking.customer.id }),
-      }).catch(() => {})
+      // Fire-and-forget: regenerate the cached AI profile after the note is saved
+      supabase.functions
+        .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
+        .catch(console.error)
     }
   }
 

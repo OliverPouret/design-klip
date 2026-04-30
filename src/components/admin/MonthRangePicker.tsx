@@ -11,9 +11,11 @@ const PRESETS = [1, 3, 6, 12]
 export function MonthRangePicker({ value, max, onChange }: MonthRangePickerProps) {
   const [draft, setDraft] = useState<string>(String(value))
 
-  // Keep draft in sync if parent changes value programmatically
+  // Keep draft in sync if parent changes value programmatically.
+  // queueMicrotask defers the setState so it isn't a synchronous setState in
+  // the effect body (which the react-hooks lint rule disallows).
   useEffect(() => {
-    setDraft(String(value))
+    queueMicrotask(() => setDraft(String(value)))
   }, [value])
 
   // Debounce custom input to avoid firing on every keystroke
