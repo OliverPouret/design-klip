@@ -59,10 +59,10 @@ export function NotesPage() {
   if (loading) return <p className="text-sm text-[#8A8A8A]">Henter noter…</p>
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <h1 className="font-serif text-[22px] text-ink">Salonnoter</h1>
+    <div className="max-w-2xl md:h-full md:flex md:flex-col md:gap-3 md:min-h-0 space-y-4 md:space-y-0">
+      <h1 className="font-serif text-[22px] text-ink flex-shrink-0">Salonnoter</h1>
 
-      <Card padding="sm">
+      <Card padding="sm" className="flex-shrink-0">
         <div className="flex gap-2">
           <input
             type="text"
@@ -82,7 +82,7 @@ export function NotesPage() {
         </div>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end flex-shrink-0">
         <button
           onClick={() => setShowResolved(!showResolved)}
           className="text-[12px] text-[#8A8A8A] hover:text-ink transition-colors"
@@ -98,7 +98,7 @@ export function NotesPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 md:flex-1 md:min-h-0 md:overflow-y-auto md:pr-1">
           {notes.map((note) => (
             <Card
               key={note.id}

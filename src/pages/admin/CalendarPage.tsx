@@ -44,7 +44,6 @@ export function CalendarPage() {
     fetchCounts()
   }, [viewMonth])
 
-  // Build calendar grid
   const year = viewMonth.getFullYear()
   const month = viewMonth.getMonth()
   const firstOfMonth = new Date(year, month, 1)
@@ -88,9 +87,9 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="md:h-full md:flex md:flex-col md:gap-3 md:min-h-0">
       {/* Month nav */}
-      <Card padding="sm">
+      <Card padding="sm" className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <button
             onClick={goPrev}
@@ -110,79 +109,82 @@ export function CalendarPage() {
         </div>
       </Card>
 
-      {/* Calendar grid */}
-      <Card padding="sm">
-        <div className="grid grid-cols-7 mb-2">
-          {WEEKDAY_HEADERS.map((d, i) => (
-            <div
-              key={i}
-              className="text-center py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-gray-400"
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((d, i) => {
-            const key = isoDate(d)
-            const count = counts[key] ?? 0
-            const isOutside = d.getMonth() !== month
-            const isSunday = d.getDay() === 0
-            const isToday = key === todayKey
-
-            const intensity = maxCount > 0 ? (count / maxCount) * 0.3 : 0
-            const bgStyle =
-              count > 0 && !isOutside
-                ? { backgroundColor: `rgba(176, 138, 62, ${intensity + 0.06})` }
-                : undefined
-
-            return (
-              <button
+      {/* Main row: calendar + side stats on desktop, stacked on mobile */}
+      <div className="md:flex-1 md:min-h-0 grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3">
+        {/* Calendar grid */}
+        <Card padding="sm" className="md:flex md:flex-col md:min-h-0">
+          <div className="grid grid-cols-7 mb-2 flex-shrink-0">
+            {WEEKDAY_HEADERS.map((d, i) => (
+              <div
                 key={i}
-                onClick={() => handleDayClick(d)}
-                disabled={loading}
-                className={`aspect-square rounded-md text-left p-1.5 transition-colors flex flex-col ${
-                  isOutside
-                    ? 'opacity-30'
-                    : isSunday
-                      ? 'opacity-50'
-                      : 'hover:ring-2 hover:ring-[#B08A3E]/30'
-                }`}
-                style={bgStyle}
+                className="text-center py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-gray-400"
               >
-                <span
-                  className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-medium leading-none ${
-                    isToday ? 'bg-[#1A1A1A] text-white' : 'text-gray-900'
-                  }`}
-                >
-                  {d.getDate()}
-                </span>
-                {count > 0 && !isOutside && (
-                  <span className="text-[10px] text-[#8C6A28] font-medium mt-auto">
-                    {count} {count === 1 ? 'booking' : 'bookinger'}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </Card>
+                {d}
+              </div>
+            ))}
+          </div>
 
-      {/* Summary metrics */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card padding="sm">
-          <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Bookinger</p>
-          <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{totalBookings}</p>
+          <div className="grid grid-cols-7 grid-rows-6 gap-1 md:flex-1 md:min-h-0">
+            {days.map((d, i) => {
+              const key = isoDate(d)
+              const count = counts[key] ?? 0
+              const isOutside = d.getMonth() !== month
+              const isSunday = d.getDay() === 0
+              const isToday = key === todayKey
+
+              const intensity = maxCount > 0 ? (count / maxCount) * 0.3 : 0
+              const bgStyle =
+                count > 0 && !isOutside
+                  ? { backgroundColor: `rgba(176, 138, 62, ${intensity + 0.06})` }
+                  : undefined
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleDayClick(d)}
+                  disabled={loading}
+                  className={`min-h-0 rounded-md text-left p-1.5 transition-colors flex flex-col ${
+                    isOutside
+                      ? 'opacity-30'
+                      : isSunday
+                        ? 'opacity-50'
+                        : 'hover:ring-2 hover:ring-[#B08A3E]/30'
+                  }`}
+                  style={bgStyle}
+                >
+                  <span
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-medium leading-none flex-shrink-0 ${
+                      isToday ? 'bg-[#1A1A1A] text-white' : 'text-gray-900'
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                  {count > 0 && !isOutside && (
+                    <span className="text-[10px] text-[#8C6A28] font-medium mt-auto">
+                      {count} {count === 1 ? 'booking' : 'bookinger'}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </Card>
-        <Card padding="sm">
-          <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Aktive dage</p>
-          <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{activeDays}</p>
-        </Card>
-        <Card padding="sm">
-          <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Gns. pr. dag</p>
-          <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{avgPerDay}</p>
-        </Card>
+
+        {/* Side stats on desktop */}
+        <div className="grid grid-cols-3 md:grid-cols-1 gap-3 md:gap-3">
+          <Card padding="sm">
+            <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Bookinger</p>
+            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{totalBookings}</p>
+          </Card>
+          <Card padding="sm">
+            <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Aktive dage</p>
+            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{activeDays}</p>
+          </Card>
+          <Card padding="sm">
+            <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Gns. pr. dag</p>
+            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{avgPerDay}</p>
+          </Card>
+        </div>
       </div>
     </div>
   )

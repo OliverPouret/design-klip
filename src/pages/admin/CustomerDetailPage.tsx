@@ -145,8 +145,8 @@ export function CustomerDetailPage() {
   const lastVisit = bookings.find((b) => b.status === 'completed' || b.status === 'confirmed')
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <Link to="/admin/kunder" className="text-[12px] text-[#5F5E5A] hover:text-ink block">
+    <div className="max-w-3xl md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto md:pr-1 space-y-4">
+      <Link to="/admin/kunder" className="text-[12px] text-[#5F5E5A] hover:text-ink block flex-shrink-0">
         ← Alle kunder
       </Link>
 

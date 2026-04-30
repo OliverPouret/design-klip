@@ -40,13 +40,13 @@ export function CustomersPage() {
   if (loading) return <p className="text-sm text-[#8A8A8A]">Henter kunder…</p>
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="max-w-3xl md:h-full md:flex md:flex-col md:gap-4 md:min-h-0 space-y-4 md:space-y-0">
+      <div className="flex items-center justify-between flex-shrink-0">
         <h1 className="font-serif text-[22px] text-ink">Kunder</h1>
         <span className="text-[12px] text-[#8A8A8A]">{customers.length} kunder</span>
       </div>
 
-      <Card padding="sm">
+      <Card padding="sm" className="flex-shrink-0">
         <div className="relative">
           <svg
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A8A8A]"
@@ -77,7 +77,7 @@ export function CustomersPage() {
           </p>
         </Card>
       ) : (
-        <Card padding="none">
+        <Card padding="none" className="md:flex-1 md:min-h-0 md:overflow-y-auto">
           <div className="divide-y divide-gray-100">
             {filtered.map((customer) => (
               <Link

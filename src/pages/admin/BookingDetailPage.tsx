@@ -142,10 +142,10 @@ export function BookingDetailPage() {
   if (!booking) return <p className="text-sm text-[#5F5E5A]">Booking ikke fundet.</p>
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="max-w-3xl md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto md:pr-1 space-y-4">
       <button
         onClick={() => navigate(-1)}
-        className="text-[12px] text-[#5F5E5A] hover:text-ink transition-colors"
+        className="text-[12px] text-[#5F5E5A] hover:text-ink transition-colors flex-shrink-0 self-start"
       >
         ← Tilbage
       </button>

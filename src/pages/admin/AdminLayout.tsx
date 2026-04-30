@@ -98,8 +98,6 @@ export function AdminLayout() {
     location.pathname === path || (path === '/admin/i-dag' && location.pathname === '/admin')
 
   const pageTitle = getPageTitle(location.pathname)
-  const isFixedFrame =
-    location.pathname === '/admin' || location.pathname === '/admin/i-dag'
 
   const navLink = (item: (typeof NAV_ITEMS)[number], onClick?: () => void) => {
     const active = isActive(item.path)
@@ -187,12 +185,8 @@ export function AdminLayout() {
           <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
         </div>
 
-        {/* Content area — fixed frame on /i-dag, scrollable on other pages */}
-        <div
-          className={`flex-1 p-4 md:p-6 ${
-            isFixedFrame ? 'md:overflow-hidden md:flex md:flex-col' : 'md:overflow-y-auto'
-          }`}
-        >
+        {/* Content area — fixed frame on desktop; pages handle their own internal scroll */}
+        <div className="flex-1 p-4 md:p-6 md:overflow-hidden md:flex md:flex-col md:min-h-0">
           <Outlet />
         </div>
       </main>

@@ -100,8 +100,8 @@ export function CreateBookingPage() {
   today.setHours(0, 0, 0, 0)
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <h1 className="font-serif text-[22px] text-ink">Opret telefonbooking</h1>
+    <div className="max-w-2xl md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto md:pr-1 space-y-4">
+      <h1 className="font-serif text-[22px] text-ink flex-shrink-0">Opret telefonbooking</h1>
 
       <Card>
         <div className="space-y-6">
