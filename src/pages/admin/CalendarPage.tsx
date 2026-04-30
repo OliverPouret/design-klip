@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { Card } from '../../components/admin/Card'
+import { RescheduleModal } from '../../components/admin/booking/RescheduleModal'
 
 const MONTH_FULL = [
   'januar', 'februar', 'marts', 'april', 'maj', 'juni',
@@ -17,6 +18,7 @@ interface DayBooking {
   status: string
   source: string
   barber_id: string
+  service_id: string
   customer: { id: string; full_name: string; phone_e164: string }
   service: { name_da: string }
   barber: { display_name: string; slug: string }
@@ -33,6 +35,7 @@ export function CalendarPage() {
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [showReschedule, setShowReschedule] = useState(false)
   const [dayLoading, setDayLoading] = useState(false)
   const dayPanelRef = useRef<HTMLDivElement>(null)
 
@@ -109,7 +112,7 @@ export function CalendarPage() {
     const { data } = await supabase
       .from('bookings')
       .select(`
-        id, starts_at, ends_at, duration_minutes, status, source, barber_id,
+        id, starts_at, ends_at, duration_minutes, status, source, barber_id, service_id,
         customer:customers!inner(id, full_name, phone_e164),
         service:services!inner(name_da),
         barber:barbers!inner(display_name, slug)
@@ -332,18 +335,26 @@ export function CalendarPage() {
                 <span className="text-gray-500">Frisør</span>
                 <span className="text-gray-900">{manageBooking.barber.display_name}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">Tid</span>
-                <span className="text-gray-900">
-                  {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                  {' — '}
-                  {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <span className="flex items-center gap-2">
+                  <span className="text-gray-900">
+                    {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                    {' — '}
+                    {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <button
+                    onClick={() => setShowReschedule(true)}
+                    className="text-xs text-[#B08A3E] hover:text-[#8C6A28] transition-colors"
+                  >
+                    Skift tid →
+                  </button>
                 </span>
               </div>
               <div className="flex justify-between">
@@ -423,6 +434,29 @@ export function CalendarPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reschedule modal — overlays on top of the Administrér modal */}
+      {showReschedule && manageBooking && (
+        <RescheduleModal
+          booking={{
+            id: manageBooking.id,
+            barber_id: manageBooking.barber_id,
+            service_id: manageBooking.service_id,
+            starts_at: manageBooking.starts_at,
+            ends_at: manageBooking.ends_at,
+            customer_name: manageBooking.customer.full_name,
+            service_name: manageBooking.service.name_da,
+            barber_name: manageBooking.barber.display_name,
+          }}
+          onClose={() => setShowReschedule(false)}
+          onRescheduled={() => {
+            const day = dayViewDate
+            setShowReschedule(false)
+            setManageBooking(null)
+            if (day) handleDayClick(day)
+          }}
+        />
       )}
     </div>
   )
