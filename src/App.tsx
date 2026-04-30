@@ -11,9 +11,9 @@ import { AdminLayout } from './pages/admin/AdminLayout'
 import { LoginPage } from './pages/admin/LoginPage'
 import { TodayPage } from './pages/admin/TodayPage'
 import { CalendarPage } from './pages/admin/CalendarPage'
+import { InsightsPage } from './pages/admin/InsightsPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
 import { CustomersPage } from './pages/admin/CustomersPage'
-import { CustomerDetailPage } from './pages/admin/CustomerDetailPage'
 import { NotesPage } from './pages/admin/NotesPage'
 import { BookingDetailPage } from './pages/admin/BookingDetailPage'
 
@@ -37,9 +37,9 @@ export default function App() {
             <Route index element={<TodayPage />} />
             <Route path="i-dag" element={<TodayPage />} />
             <Route path="kalender" element={<CalendarPage />} />
+            <Route path="overblik" element={<InsightsPage />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
-            <Route path="kunder/:customerId" element={<CustomerDetailPage />} />
             <Route path="noter" element={<NotesPage />} />
             <Route path="booking/:bookingId" element={<BookingDetailPage />} />
           </Route>

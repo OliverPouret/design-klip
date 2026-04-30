@@ -38,8 +38,6 @@ export function TodayPage() {
   const [barberHours, setBarberHours] = useState<Record<string, { opens: string; closes: string } | null>>({})
   const [noteFlags, setNoteFlags] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
-  const [insights, setInsights] = useState<string | null>(null)
-  const [insightsLoading, setInsightsLoading] = useState(false)
   const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT)
   const timelineBodyRef = useRef<HTMLDivElement>(null)
 
@@ -170,50 +168,10 @@ export function TodayPage() {
 
   const isToday = isoDate(viewDate) === isoDate(new Date())
 
-  const handleGenerateInsights = async () => {
-    setInsightsLoading(true)
-    try {
-      const res = await fetch('/api/generate-insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      const data = (await res.json()) as { insights?: string }
-      if (data.insights) setInsights(data.insights)
-    } finally {
-      setInsightsLoading(false)
-    }
-  }
-
   if (loading) return <p className="text-sm text-[#8A8A8A]">Henter program…</p>
 
   return (
     <div className="md:h-full flex flex-col gap-3 md:gap-4 md:min-h-0">
-      {/* Business insights */}
-      <div className="flex-shrink-0">
-        <Card padding="sm">
-          {!insights ? (
-            <button
-              onClick={handleGenerateInsights}
-              disabled={insightsLoading}
-              className="flex items-center gap-2 text-sm text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
-            >
-              {insightsLoading ? 'Analyserer…' : '📊 Forretningsoverblik'}
-            </button>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">Forretningsoverblik</p>
-                <button onClick={() => setInsights(null)} className="text-[11px] text-[#8A8A8A] hover:text-ink">
-                  Luk
-                </button>
-              </div>
-              <div className="text-sm text-ink leading-relaxed whitespace-pre-line">{insights}</div>
-            </div>
-          )}
-        </Card>
-      </div>
-
       {/* Day navigation */}
       <div className="flex-shrink-0">
         <Card padding="sm">

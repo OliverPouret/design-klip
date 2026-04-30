@@ -143,7 +143,7 @@ export function CalendarPage() {
                   key={i}
                   onClick={() => handleDayClick(d)}
                   disabled={loading}
-                  className={`min-h-0 rounded-md text-left p-1.5 transition-colors flex flex-col ${
+                  className={`min-h-0 rounded-md text-left p-1.5 border border-gray-200 transition-colors flex flex-col ${
                     isOutside
                       ? 'opacity-30'
                       : isSunday
@@ -152,13 +152,22 @@ export function CalendarPage() {
                   }`}
                   style={bgStyle}
                 >
-                  <span
-                    className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-medium leading-none flex-shrink-0 ${
-                      isToday ? 'bg-[#1A1A1A] text-white' : 'text-gray-900'
-                    }`}
-                  >
-                    {d.getDate()}
-                  </span>
+                  {isToday ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#1A1A1A] text-white text-[12px] font-medium leading-none flex-shrink-0">
+                        {d.getDate()}
+                      </span>
+                      <span className="text-[10px] font-medium text-gray-500">I dag</span>
+                    </div>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-medium leading-none flex-shrink-0 ${
+                        isOutside || isSunday ? 'text-gray-400' : 'text-gray-900'
+                      }`}
+                    >
+                      {d.getDate()}
+                    </span>
+                  )}
                   {count > 0 && !isOutside && (
                     <span className="text-[10px] text-[#8C6A28] font-medium mt-auto">
                       {count} {count === 1 ? 'booking' : 'bookinger'}
