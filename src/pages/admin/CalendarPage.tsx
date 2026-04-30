@@ -46,6 +46,9 @@ export function CalendarPage() {
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
   const dayPanelRef = useRef<HTMLDivElement>(null)
+  // Scroll to the day panel only on the FIRST open after a Luk; subsequent
+  // date clicks update the panel in place without re-scrolling.
+  const dayPanelEverOpened = useRef(false)
   const { barbers: activeBarbers } = useBarbers()
 
   useEffect(() => {
@@ -173,9 +176,13 @@ export function CalendarPage() {
     setDayNotedCustomerIds(noted)
     setDayLoading(false)
 
-    setTimeout(() => {
-      dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 100)
+    // Scroll only on the first open since the panel was last closed.
+    if (!dayPanelEverOpened.current) {
+      dayPanelEverOpened.current = true
+      setTimeout(() => {
+        dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
   }
 
   // Real-time subscription: any booking change (insert/update/delete from any
@@ -320,7 +327,10 @@ export function CalendarPage() {
               })}
             </h2>
             <button
-              onClick={() => setDayViewDate(null)}
+              onClick={() => {
+                setDayViewDate(null)
+                dayPanelEverOpened.current = false
+              }}
               className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
             >
               ✕ Luk

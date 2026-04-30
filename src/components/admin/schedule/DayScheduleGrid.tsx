@@ -110,10 +110,12 @@ export function DayScheduleGrid({
           return (
             <div
               key={barber.id}
-              className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
+              className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-gray-900' : 'bg-[#FAFAF8]'}`}
             >
-              <p className="text-[13px] font-medium text-gray-900">{barber.display_name}</p>
-              {isOff && <p className="text-[11px] text-gray-400 mt-0.5">Fri i dag</p>}
+              <p className={`text-[13px] font-medium ${isOff ? 'text-gray-400 opacity-40' : 'text-gray-900'}`}>
+                {barber.display_name}
+              </p>
+              {isOff && <p className="text-[11px] text-gray-500 mt-0.5">Fri i dag</p>}
             </div>
           )
         })}
@@ -149,12 +151,12 @@ export function DayScheduleGrid({
             <div
               key={barber.id}
               ref={timelineBodyRef}
-              className={`relative border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
+              className={`relative border-l border-gray-200 ${isOff ? 'bg-gray-900' : ''}`}
               style={{ height: `${totalHeight}px` }}
             >
               {isOff && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xs text-gray-400 italic">Fridag</span>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-xs text-gray-500 italic">Fridag</span>
                 </div>
               )}
               {timeLabels.map((_, i) => (
