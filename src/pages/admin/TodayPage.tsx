@@ -39,6 +39,7 @@ export function TodayPage() {
   const [noteFlags, setNoteFlags] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT)
+  const [refreshKey, setRefreshKey] = useState(0)
   const timelineBodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -103,7 +104,23 @@ export function TodayPage() {
     }
 
     fetchData()
-  }, [viewDate, barbers])
+  }, [viewDate, barbers, refreshKey])
+
+  // Real-time subscription: any booking change triggers a re-fetch.
+  // Requires Realtime enabled on bookings table in Supabase dashboard.
+  useEffect(() => {
+    const channel = supabase
+      .channel('idag-bookings-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => setRefreshKey((k) => k + 1),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   // Calculate the time range for the grid
   const allOpens = Object.values(barberHours).filter((h): h is { opens: string; closes: string } => Boolean(h)).map((h) => h.opens)

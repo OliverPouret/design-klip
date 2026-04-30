@@ -36,6 +36,8 @@ export function CalendarPage() {
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
+  const [monthRefreshKey, setMonthRefreshKey] = useState(0)
+  const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
   const dayPanelRef = useRef<HTMLDivElement>(null)
 
@@ -62,7 +64,7 @@ export function CalendarPage() {
       setLoading(false)
     }
     fetchCounts()
-  }, [viewMonth])
+  }, [viewMonth, monthRefreshKey])
 
   const year = viewMonth.getFullYear()
   const month = viewMonth.getMonth()
@@ -129,6 +131,26 @@ export function CalendarPage() {
       dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
   }
+
+  // Real-time subscription: any booking change (insert/update/delete from any
+  // device) triggers a re-fetch of month data and (if open) the day panel.
+  // Requires Realtime enabled on bookings table in Supabase dashboard.
+  useEffect(() => {
+    const channel = supabase
+      .channel('kalender-bookings-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          refreshMonth()
+          if (dayViewDate) handleDayClick(dayViewDate)
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [dayViewDate])
 
   return (
     <div className="md:h-full md:overflow-y-auto md:flex md:flex-col md:gap-3 md:pr-1 space-y-3 md:space-y-0">
@@ -383,6 +405,7 @@ export function CalendarPage() {
                       await supabase.from('bookings').update({ status: 'completed' }).eq('id', id)
                       setManageBooking(null)
                       setActionLoading(false)
+                      refreshMonth()
                       if (day) handleDayClick(day)
                     }}
                     disabled={actionLoading}
@@ -398,6 +421,7 @@ export function CalendarPage() {
                       await supabase.from('bookings').update({ status: 'no_show' }).eq('id', id)
                       setManageBooking(null)
                       setActionLoading(false)
+                      refreshMonth()
                       if (day) handleDayClick(day)
                     }}
                     disabled={actionLoading}
@@ -423,6 +447,7 @@ export function CalendarPage() {
                     .eq('id', id)
                   setManageBooking(null)
                   setActionLoading(false)
+                  refreshMonth()
                   if (day) handleDayClick(day)
                 }}
                 disabled={actionLoading}
@@ -453,6 +478,7 @@ export function CalendarPage() {
             const day = dayViewDate
             setShowReschedule(false)
             setManageBooking(null)
+            refreshMonth()
             if (day) handleDayClick(day)
           }}
         />
