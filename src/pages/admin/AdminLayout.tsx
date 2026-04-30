@@ -50,6 +50,12 @@ const ICON_CHART = (
     <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z" />
   </svg>
 )
+const ICON_TRENDING_UP = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 17 9 11 13 15 21 7" />
+    <polyline points="14 7 21 7 21 14" />
+  </svg>
+)
 const ICON_LOGOUT = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -75,6 +81,7 @@ const NAV_ITEMS = [
   { path: '/admin/i-dag', label: 'I dag', icon: ICON_SCHEDULE },
   { path: '/admin/kalender', label: 'Kalender', icon: ICON_CALENDAR },
   { path: '/admin/overblik', label: 'Overblik', icon: ICON_CHART },
+  { path: '/admin/oekonomi', label: 'Økonomi', icon: ICON_TRENDING_UP },
   { path: '/admin/opret-booking', label: 'Opret booking', icon: ICON_PLUS },
   { path: '/admin/kunder', label: 'Kunder', icon: ICON_USERS },
   { path: '/admin/medarbejdere', label: 'Medarbejdere', icon: ICON_STAFF },
@@ -85,6 +92,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === '/admin' || pathname === '/admin/i-dag') return 'I dag'
   if (pathname.startsWith('/admin/kalender')) return 'Kalender'
   if (pathname.startsWith('/admin/overblik')) return 'Forretningsoverblik'
+  if (pathname.startsWith('/admin/oekonomi')) return 'Økonomi'
   if (pathname.startsWith('/admin/opret-booking')) return 'Opret booking'
   if (pathname.startsWith('/admin/kunder/')) return 'Kunde'
   if (pathname.startsWith('/admin/kunder')) return 'Kunder'

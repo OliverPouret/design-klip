@@ -29,7 +29,9 @@ interface JoinedBooking {
   source: string
   customer_id: string
   barber_id: string
-  service: { name_da: string; price_ore: number } | null
+  // Price is on bookings.price_ore (captured at booking time), not services
+  price_ore: number
+  service: { name_da: string } | null
   barber: { display_name: string } | null
 }
 
@@ -60,8 +62,8 @@ serve(async (req: Request) => {
     const { data: rows } = await supabase
       .from('bookings')
       .select(`
-        starts_at, status, source, customer_id, barber_id,
-        service:services!inner(name_da, price_ore),
+        starts_at, status, source, customer_id, barber_id, price_ore,
+        service:services!inner(name_da),
         barber:barbers!inner(display_name)
       `)
       .gte('starts_at', periodStart.toISOString())
@@ -71,7 +73,7 @@ serve(async (req: Request) => {
     const bookings = (rows ?? []) as unknown as JoinedBooking[]
 
     const totalBookings = bookings.length
-    const totalRevenueOre = bookings.reduce((sum, b) => sum + (b.service?.price_ore ?? 0), 0)
+    const totalRevenueOre = bookings.reduce((sum, b) => sum + (b.price_ore ?? 0), 0)
     const totalRevenueKr = Math.round(totalRevenueOre / 100)
     const onlineCount = bookings.filter((b) => b.source === 'web').length
     const phoneCount = bookings.filter((b) => b.source === 'phone').length

@@ -13,8 +13,10 @@ interface TodayBooking {
   status: string
   source: string
   barber_id: string
+  // Price lives on the booking row (captured at booking time), not on services
+  price_ore: number
   customer: { full_name: string }
-  service: { name_da: string; price_ore: number; duration_minutes: number }
+  service: { name_da: string; duration_minutes: number }
   barber: { display_name: string }
 }
 
@@ -57,9 +59,9 @@ export function TodayPage() {
         supabase
           .from('bookings')
           .select(`
-            id, starts_at, ends_at, status, source, barber_id,
+            id, starts_at, ends_at, status, source, barber_id, price_ore,
             customer:customers!inner(full_name),
-            service:services!inner(name_da, price_ore, duration_minutes),
+            service:services!inner(name_da, duration_minutes),
             barber:barbers!inner(display_name)
           `)
           .gte('starts_at', dayStart.toISOString())
@@ -114,7 +116,7 @@ export function TodayPage() {
   // Stats — only confirmed/pending count toward the day
   const active = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
   const totalBookings = active.length
-  const totalRevenueOre = active.reduce((sum, b) => sum + (b.service?.price_ore ?? 0), 0)
+  const totalRevenueOre = active.reduce((sum, b) => sum + (b.price_ore ?? 0), 0)
   const onlineCount = active.filter((b) => b.source === 'web').length
   const phoneCount = active.filter((b) => b.source === 'phone').length
   const noShowCount = bookings.filter((b) => b.status === 'no_show').length
