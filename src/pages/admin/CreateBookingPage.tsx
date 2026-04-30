@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useServices } from '../../hooks/useServices'
 import { useBarbers } from '../../hooks/useBarbers'
 import { formatDKK } from '../../types/database'
-import { formatTimeShort, isoDate } from '../../lib/danishDates'
+import { formatTimeShort, isoDate, isoWeekday } from '../../lib/danishDates'
 
 interface Slot {
   slot_starts_at: string
@@ -19,6 +19,12 @@ interface ExistingBooking {
   service: { name_da: string }
 }
 
+interface CustomerLookupRow {
+  id: string
+  full_name: string
+  phone_e164: string
+}
+
 const SELECT_BTN = 'text-left px-3.5 py-2.5 border rounded-lg text-sm transition-all'
 const SELECT_DEFAULT =
   'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
@@ -29,7 +35,13 @@ const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
   const h = Math.floor(totalMins / 60).toString().padStart(2, '0')
   const m = (totalMins % 60).toString().padStart(2, '0')
   return `${h}:${m}`
-}) // 09:00–17:00
+})
+
+const MONTH_FULL = [
+  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
+  'juli', 'august', 'september', 'oktober', 'november', 'december',
+]
+const WEEKDAY_HEADERS = ['M', 'T', 'O', 'T', 'F', 'L', 'S']
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -46,29 +58,31 @@ export function CreateBookingPage() {
 
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [barberId, setBarberId] = useState<string | null>(null)
+  const [barberWorkdays, setBarberWorkdays] = useState<number[] | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [slots, setSlots] = useState<Slot[]>([])
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([])
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [notes, setNotes] = useState('')
+  const [existingCustomer, setExistingCustomer] = useState<CustomerLookupRow | null>(null)
+  const [lookupDone, setLookupDone] = useState(false)
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [calViewMonth, setCalViewMonth] = useState(() => {
+    const d = new Date()
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
 
   // Fetch existing bookings whenever date or barber changes — used for the live schedule
   useEffect(() => {
     if (!selectedDate) return
-    const start = new Date(
-      selectedDate.getFullYear(),
-      selectedDate.getMonth(),
-      selectedDate.getDate(),
-    )
-    const end = new Date(
-      selectedDate.getFullYear(),
-      selectedDate.getMonth(),
-      selectedDate.getDate() + 1,
-    )
+    const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
+    const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1)
 
     supabase
       .from('bookings')
@@ -83,6 +97,24 @@ export function CreateBookingPage() {
       })
   }, [selectedDate, barberId])
 
+  const handleBarberSelect = async (id: string | null) => {
+    setBarberId(id)
+    setSelectedSlot(null)
+    setSlots([])
+    if (!id) {
+      setBarberWorkdays(null)
+      return
+    }
+    const { data } = await supabase
+      .from('barber_hours')
+      .select('isoweekday, opens_at')
+      .eq('barber_id', id)
+    const workdays = ((data ?? []) as { isoweekday: number; opens_at: string | null }[])
+      .filter((r) => r.opens_at)
+      .map((r) => r.isoweekday)
+    setBarberWorkdays(workdays)
+  }
+
   const handleDatePick = async (date: Date) => {
     setSelectedDate(date)
     setSelectedSlot(null)
@@ -93,6 +125,28 @@ export function CreateBookingPage() {
       p_date: isoDate(date),
     })
     setSlots((data as Slot[] | null) ?? [])
+  }
+
+  const handlePhoneLookup = async (phone: string) => {
+    const cleaned = phone.replace(/[\s\-+]/g, '')
+    if (cleaned.length < 8) return
+    const last8 = cleaned.slice(-8)
+
+    const { data } = await supabase
+      .from('customers')
+      .select('id, full_name, phone_e164')
+      .ilike('phone_e164', `%${last8}`)
+      .limit(1)
+
+    if (data && data.length > 0) {
+      const cust = data[0] as CustomerLookupRow
+      setExistingCustomer(cust)
+      // Only fill name if currently empty (don't overwrite barber's typing)
+      setCustomerName((prev) => prev || cust.full_name)
+    } else {
+      setExistingCustomer(null)
+    }
+    setLookupDone(true)
   }
 
   const handleSubmit = async () => {
@@ -144,6 +198,42 @@ export function CreateBookingPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
+  // Calendar grid for the visible month
+  const calYear = calViewMonth.getFullYear()
+  const calMonth = calViewMonth.getMonth()
+  const calFirstOfMonth = new Date(calYear, calMonth, 1)
+  const calStartOffset = isoWeekday(calFirstOfMonth) - 1
+  const calStart = new Date(calYear, calMonth, 1 - calStartOffset)
+  const calDays: Date[] = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(calStart)
+    d.setDate(calStart.getDate() + i)
+    calDays.push(d)
+  }
+
+  const isDayDisabled = (d: Date) => {
+    if (d < today) return true
+    if (d.getMonth() !== calMonth) return true
+    const wd = isoWeekday(d)
+    if (wd === 7) return true // Sunday
+    if (barberWorkdays && !barberWorkdays.includes(wd)) return true
+    return false
+  }
+
+  const goPrevMonth = () => {
+    const prev = new Date(calViewMonth)
+    prev.setMonth(prev.getMonth() - 1)
+    if (prev >= new Date(today.getFullYear(), today.getMonth(), 1)) {
+      setCalViewMonth(prev)
+    }
+  }
+  const goNextMonth = () => {
+    const next = new Date(calViewMonth)
+    next.setMonth(next.getMonth() + 1)
+    setCalViewMonth(next)
+  }
+  const canGoBack = calViewMonth > new Date(today.getFullYear(), today.getMonth(), 1)
+
   // Lookup helpers for the live schedule
   const isSlotBooked = (timeStr: string): ExistingBooking | null => {
     if (!selectedDate) return null
@@ -159,12 +249,14 @@ export function CreateBookingPage() {
       existingBookings.find((b) => {
         const bStart = new Date(b.starts_at)
         const bEnd = new Date(bStart.getTime() + b.duration_minutes * 60000)
-        return (
-          slotStart >= bStart && slotStart < bEnd && (!barberId || b.barber_id === barberId)
-        )
+        return slotStart >= bStart && slotStart < bEnd && (!barberId || b.barber_id === barberId)
       }) ?? null
     )
   }
+
+  const cleanedPhoneLength = customerPhone.replace(/\s/g, '').length
+  const canSubmit =
+    serviceId && selectedSlot && customerName.trim() && customerPhone.trim() && !submitting
 
   return (
     <div className="md:h-full md:flex md:flex-col md:min-h-0 flex-1">
@@ -172,6 +264,67 @@ export function CreateBookingPage() {
         {/* LEFT: booking form */}
         <div className="w-full md:max-w-md md:flex-shrink-0 md:overflow-y-auto md:pr-1 space-y-4">
           <h1 className="font-serif text-[22px] text-ink">Opret telefonbooking</h1>
+
+          {/* Customer info — always visible */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <SectionLabel>Kundeoplysninger</SectionLabel>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                  Telefonnummer
+                </label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value)
+                    setLookupDone(false)
+                    setExistingCustomer(null)
+                  }}
+                  onBlur={(e) => handlePhoneLookup(e.target.value)}
+                  placeholder="12 34 56 78"
+                  inputMode="numeric"
+                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                />
+                {existingCustomer && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                    <span className="text-xs text-green-700">
+                      Eksisterende kunde — {existingCustomer.full_name}
+                    </span>
+                  </div>
+                )}
+                {lookupDone && !existingCustomer && cleanedPhoneLength >= 8 && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="text-xs text-gray-400">Ny kunde</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                  Navn
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
+                  Note (valgfrit)
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="f.eks. vil betale med MobilePay"
+                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-6">
             {/* Service */}
@@ -205,11 +358,7 @@ export function CreateBookingPage() {
                 <SectionLabel>Frisør</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => {
-                      setBarberId(null)
-                      setSelectedSlot(null)
-                      setSlots([])
-                    }}
+                    onClick={() => handleBarberSelect(null)}
                     className={`${SELECT_BTN} ${barberId === null ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                   >
                     Første ledige
@@ -217,11 +366,7 @@ export function CreateBookingPage() {
                   {barbers.map((b) => (
                     <button
                       key={b.id}
-                      onClick={() => {
-                        setBarberId(b.id)
-                        setSelectedSlot(null)
-                        setSlots([])
-                      }}
+                      onClick={() => handleBarberSelect(b.id)}
                       className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                     >
                       {b.display_name}
@@ -231,77 +376,72 @@ export function CreateBookingPage() {
               </div>
             )}
 
-            {/* Date */}
+            {/* Date — full month calendar */}
             {serviceId && (
               <div>
                 <SectionLabel>Dato</SectionLabel>
-                <div className="flex gap-2 flex-wrap">
-                  {Array.from({ length: 14 }, (_, i) => {
-                    const d = new Date(today)
-                    d.setDate(today.getDate() + i)
-                    if (d.getDay() === 0) return null
-                    const isActive = selectedDate && isoDate(selectedDate) === isoDate(d)
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => handleDatePick(d)}
-                        className={`px-3 py-2 border rounded-lg text-[12px] transition-all ${
-                          isActive
-                            ? 'border-[#B08A3E] bg-[#B08A3E] text-white'
-                            : 'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
-                        }`}
-                      >
-                        <div className="font-medium">{d.toLocaleDateString('da-DK', { weekday: 'short' })}</div>
-                        <div className={isActive ? 'text-white/85' : 'text-[#8A8A8A]'}>
-                          {d.getDate()}/{d.getMonth() + 1}
-                        </div>
-                      </button>
-                    )
-                  }).filter(Boolean)}
-                </div>
-              </div>
-            )}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Month header */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={goPrevMonth}
+                      disabled={!canGoBack}
+                      className="px-2 py-1 text-xs text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      ←
+                    </button>
+                    <span className="text-sm text-gray-900 capitalize">
+                      {MONTH_FULL[calMonth]} {calYear}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={goNextMonth}
+                      className="px-2 py-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                    >
+                      →
+                    </button>
+                  </div>
 
-            {/* Customer info */}
-            {selectedSlot && (
-              <div>
-                <SectionLabel>Kundeoplysninger</SectionLabel>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
-                      Navn
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
-                    />
+                  {/* Weekday headers */}
+                  <div className="grid grid-cols-7 border-b border-gray-100">
+                    {WEEKDAY_HEADERS.map((d, i) => (
+                      <div
+                        key={i}
+                        className="text-center py-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400"
+                      >
+                        {d}
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
-                      Telefonnummer
-                    </label>
-                    <input
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="12 34 56 78"
-                      inputMode="numeric"
-                      className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
-                      Note (valgfrit)
-                    </label>
-                    <input
-                      type="text"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="f.eks. vil betale med MobilePay"
-                      className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
-                    />
+
+                  {/* Day grid */}
+                  <div className="grid grid-cols-7">
+                    {calDays.map((d, i) => {
+                      const disabled = isDayDisabled(d)
+                      const isSelected =
+                        selectedDate && isoDate(d) === isoDate(selectedDate)
+                      const isOutside = d.getMonth() !== calMonth
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => !disabled && handleDatePick(d)}
+                          disabled={disabled}
+                          className={`aspect-square text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-[#1A1A1A] text-white font-medium'
+                              : disabled
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : isOutside
+                                  ? 'text-gray-300 hover:bg-gray-50'
+                                  : 'text-gray-700 hover:bg-[#B08A3E]/10'
+                          }`}
+                        >
+                          {d.getDate()}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -313,15 +453,13 @@ export function CreateBookingPage() {
               </div>
             )}
 
-            {selectedSlot && customerName && customerPhone && (
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full py-3.5 bg-[#B08A3E] text-white text-sm font-medium tracking-[0.04em] rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-60"
-              >
-                {submitting ? 'Opretter…' : 'Opret booking'}
-              </button>
-            )}
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="w-full py-3.5 bg-[#B08A3E] text-white text-sm font-medium tracking-[0.04em] rounded-lg hover:bg-[#8C6A28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Opretter…' : 'Opret booking'}
+            </button>
           </div>
         </div>
 

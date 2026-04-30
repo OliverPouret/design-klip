@@ -17,7 +17,7 @@ interface DayBooking {
   status: string
   source: string
   barber_id: string
-  customer: { id: string; full_name: string }
+  customer: { id: string; full_name: string; phone_e164: string }
   service: { name_da: string }
   barber: { display_name: string; slug: string }
 }
@@ -31,6 +31,8 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true)
   const [dayViewDate, setDayViewDate] = useState<Date | null>(null)
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
+  const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const [dayLoading, setDayLoading] = useState(false)
   const dayPanelRef = useRef<HTMLDivElement>(null)
 
@@ -108,7 +110,7 @@ export function CalendarPage() {
       .from('bookings')
       .select(`
         id, starts_at, ends_at, duration_minutes, status, source, barber_id,
-        customer:customers!inner(id, full_name),
+        customer:customers!inner(id, full_name, phone_e164),
         service:services!inner(name_da),
         barber:barbers!inner(display_name, slug)
       `)
@@ -266,7 +268,7 @@ export function CalendarPage() {
             ) : (
               <div className="divide-y divide-gray-100">
                 {dayBookings.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between px-5 py-3">
+                  <div key={b.id} className="flex items-center justify-between px-5 py-3 gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{b.customer.full_name}</p>
                       <p className="text-xs text-gray-500 truncate">
@@ -274,19 +276,151 @@ export function CalendarPage() {
                         {b.source === 'phone' && ' · 📞'}
                       </p>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-3">
-                      <p className="text-sm text-gray-700">
-                        {new Date(b.starts_at).toLocaleTimeString('da-DK', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                      <p className="text-xs text-gray-400">{b.duration_minutes} min</p>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm text-gray-700">
+                          {new Date(b.starts_at).toLocaleTimeString('da-DK', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                        <p className="text-xs text-gray-400">{b.duration_minutes} min</p>
+                      </div>
+                      <button
+                        onClick={() => setManageBooking(b)}
+                        className="px-2.5 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-colors whitespace-nowrap"
+                      >
+                        Administrér
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Manage booking modal */}
+      {manageBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-lg border border-gray-200 w-full max-w-md overflow-hidden shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-sm font-medium text-gray-900">
+                Booking — {manageBooking.customer.full_name}
+              </h3>
+              <button
+                onClick={() => setManageBooking(null)}
+                className="text-gray-400 hover:text-gray-700 transition-colors"
+                aria-label="Luk"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Booking details */}
+            <div className="px-5 py-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Ydelse</span>
+                <span className="text-gray-900">{manageBooking.service.name_da}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Frisør</span>
+                <span className="text-gray-900">{manageBooking.barber.display_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tid</span>
+                <span className="text-gray-900">
+                  {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                  {' — '}
+                  {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Status</span>
+                <span className="text-gray-900 capitalize">{manageBooking.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Telefon</span>
+                <a
+                  href={`tel:${manageBooking.customer.phone_e164}`}
+                  className="text-[#B08A3E]"
+                >
+                  {manageBooking.customer.phone_e164}
+                </a>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-5 py-4 border-t border-gray-200 space-y-2">
+              {manageBooking.status === 'confirmed' && (
+                <>
+                  <button
+                    onClick={async () => {
+                      const id = manageBooking.id
+                      const day = dayViewDate
+                      setActionLoading(true)
+                      await supabase.from('bookings').update({ status: 'completed' }).eq('id', id)
+                      setManageBooking(null)
+                      setActionLoading(false)
+                      if (day) handleDayClick(day)
+                    }}
+                    disabled={actionLoading}
+                    className="w-full py-2.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Markér som fuldført
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const id = manageBooking.id
+                      const day = dayViewDate
+                      setActionLoading(true)
+                      await supabase.from('bookings').update({ status: 'no_show' }).eq('id', id)
+                      setManageBooking(null)
+                      setActionLoading(false)
+                      if (day) handleDayClick(day)
+                    }}
+                    disabled={actionLoading}
+                    className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Udeblevet
+                  </button>
+                </>
+              )}
+              <button
+                onClick={async () => {
+                  if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
+                  const id = manageBooking.id
+                  const day = dayViewDate
+                  setActionLoading(true)
+                  await supabase
+                    .from('bookings')
+                    .update({
+                      status: 'cancelled',
+                      cancelled_at: new Date().toISOString(),
+                      cancelled_by: 'admin',
+                    })
+                    .eq('id', id)
+                  setManageBooking(null)
+                  setActionLoading(false)
+                  if (day) handleDayClick(day)
+                }}
+                disabled={actionLoading}
+                className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Afbestil booking
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { BookingState } from '../../pages/BookingPage'
 import { formatDateLong, formatTime } from '../../lib/danishDates'
 import { formatDKK } from '../../types/database'
 import { useServices } from '../../hooks/useServices'
 import { useBarbers } from '../../hooks/useBarbers'
+import { supabase } from '../../lib/supabase'
 
 export interface CustomerInfo {
   fullName: string
@@ -30,6 +31,8 @@ export function CustomerStep({
     marketingOptIn: false,
   })
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({})
+  const [returningCustomer, setReturningCustomer] = useState(false)
+  const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const service = services.find((s) => s.slug === state.serviceSlug)
   const barber = state.anyBarber ? null : barbers.find((b) => b.slug === state.barberSlug)
@@ -37,6 +40,32 @@ export function CustomerStep({
   const set = (field: keyof CustomerInfo, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  const handlePhoneChange = (value: string) => {
+    set('phone', value)
+    setReturningCustomer(false)
+
+    const cleaned = value.replace(/[\s\-+]/g, '')
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current)
+    if (cleaned.length < 8) return
+
+    // Debounce: only lookup after 500ms of no typing
+    lookupTimerRef.current = setTimeout(async () => {
+      const last8 = cleaned.slice(-8)
+      const { data } = await supabase
+        .from('customers')
+        .select('full_name')
+        .ilike('phone_e164', `%${last8}`)
+        .limit(1)
+
+      if (data && data.length > 0) {
+        const matched = (data[0] as { full_name: string }).full_name
+        setReturningCustomer(true)
+        // Only auto-fill if the name field is currently empty
+        setForm((prev) => (prev.fullName ? prev : { ...prev, fullName: matched }))
+      }
+    }, 500)
   }
 
   const validate = (): boolean => {
@@ -103,7 +132,7 @@ export function CustomerStep({
           <input
             type="tel"
             value={form.phone}
-            onChange={(e) => set('phone', e.target.value)}
+            onChange={(e) => handlePhoneChange(e.target.value)}
             placeholder="12 34 56 78"
             inputMode="numeric"
             className={`w-full border rounded-sm px-4 py-3 text-sm text-ink placeholder:text-ink-subtle/60 outline-none transition-colors ${
@@ -112,6 +141,9 @@ export function CustomerStep({
           />
           {errors.phone && (
             <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
+          )}
+          {returningCustomer && form.fullName && (
+            <p className="text-xs text-green-600 mt-1">Velkommen tilbage!</p>
           )}
           <p className="text-xs text-ink-subtle mt-1">
             Du modtager en SMS-bekræftelse på dette nummer
