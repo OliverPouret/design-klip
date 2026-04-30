@@ -1,220 +1,183 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Card } from '../../components/admin/Card'
-import { MonthRangePicker } from '../../components/admin/MonthRangePicker'
+import { useDateRange } from '../../hooks/useDateRange'
+import { useBarbers } from '../../hooks/useBarbers'
+import { FilterBar } from '../../components/admin/oekonomi/FilterBar'
+import { KPITileRow } from '../../components/admin/oekonomi/KPITileRow'
+import type { BookingForKPI } from '../../components/admin/oekonomi/KPITileRow'
+import { getIsoWeekday } from '../../utils/revenueUtils'
 
-interface BookingRow {
-  id: string
-  price_ore: number
-  status: string
-  source: string
+interface BarberHourRow {
+  barber_id: string
+  isoweekday: number
+  opens_at: string | null
+  closes_at: string | null
+}
+
+interface TimeOffRow {
+  barber_id: string | null
   starts_at: string
-  service: { name_da: string } | null
-  barber: { display_name: string } | null
+  ends_at: string
+  is_all_day: boolean
 }
 
-function monthsBetween(earliest: Date, today: Date): number {
-  const years = today.getFullYear() - earliest.getFullYear()
-  const months = today.getMonth() - earliest.getMonth()
-  return Math.max(1, years * 12 + months + 1)
+function timeStrToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + (m ?? 0)
 }
 
-// "1.250 kr" — Danish thousands separator (period)
-function formatDanishKr(ore: number): string {
-  const kr = Math.round(ore / 100)
-  return `${kr.toLocaleString('da-DK').replace(/,/g, '.')} kr`
+function calculateWorkingMinutes(
+  start: Date,
+  end: Date,
+  barberIds: string[],
+  hours: BarberHourRow[],
+  timeOff: TimeOffRow[],
+): number {
+  if (barberIds.length === 0) return 0
+  const hoursByBarberDay = new Map<string, BarberHourRow>()
+  for (const h of hours) {
+    hoursByBarberDay.set(`${h.barber_id}-${h.isoweekday}`, h)
+  }
+
+  let total = 0
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const lastDay = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+
+  while (cursor.getTime() <= lastDay.getTime()) {
+    const wd = getIsoWeekday(cursor)
+    const dayStart = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 0, 0, 0)
+    const dayEnd = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 23, 59, 59)
+
+    for (const bid of barberIds) {
+      const h = hoursByBarberDay.get(`${bid}-${wd}`)
+      if (!h || !h.opens_at || !h.closes_at) continue
+      const minutes = timeStrToMinutes(h.closes_at) - timeStrToMinutes(h.opens_at)
+      // subtract any all-day time off that covers this day
+      const offThisDay = timeOff.some(
+        (t) =>
+          (t.barber_id === bid || t.barber_id === null) &&
+          new Date(t.starts_at).getTime() <= dayEnd.getTime() &&
+          new Date(t.ends_at).getTime() >= dayStart.getTime() &&
+          t.is_all_day,
+      )
+      if (offThisDay) continue
+      total += minutes
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return total
 }
 
 export function OekonomiPage() {
-  const [selectedMonths, setSelectedMonths] = useState(1)
-  const [maxMonths, setMaxMonths] = useState(12)
-  const [bookings, setBookings] = useState<BookingRow[]>([])
+  const { state, setPreset, setCustomRange, setComparison } = useDateRange()
+  const { barbers } = useBarbers()
+
+  const [currentBookings, setCurrentBookings] = useState<BookingForKPI[]>([])
+  const [comparisonBookings, setComparisonBookings] = useState<BookingForKPI[]>([])
+  const [barberHours, setBarberHours] = useState<BarberHourRow[]>([])
+  const [timeOff, setTimeOff] = useState<TimeOffRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch earliest booking → maxMonths
-  useEffect(() => {
-    supabase
-      .from('bookings')
-      .select('starts_at')
-      .order('starts_at', { ascending: true })
-      .limit(1)
-      .then(({ data }) => {
-        const first = (data as { starts_at: string }[] | null)?.[0]
-        if (first) {
-          setMaxMonths(Math.min(60, monthsBetween(new Date(first.starts_at), new Date())))
-        }
-      })
-  }, [])
-
-  // Fetch bookings for the period
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
-    const today = new Date()
-    const periodStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    periodStart.setMonth(periodStart.getMonth() - selectedMonths)
-    const periodEnd = today.toISOString()
+    const select =
+      'id, price_ore, status, source, starts_at, ends_at, barber_id, service_id, customer_id, services(name_da, duration_minutes)'
 
-    supabase
-      .from('bookings')
-      .select(`
-        id, price_ore, status, source, starts_at,
-        service:services(name_da),
-        barber:barbers(display_name)
-      `)
-      .gte('starts_at', periodStart.toISOString())
-      .lte('starts_at', periodEnd)
-      .neq('status', 'cancelled')
-      .order('starts_at', { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return
-        setBookings((data ?? []) as unknown as BookingRow[])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase
+        .from('bookings')
+        .select(select)
+        .gte('starts_at', state.start.toISOString())
+        .lte('starts_at', state.end.toISOString())
+        .order('starts_at'),
+      supabase
+        .from('bookings')
+        .select(select)
+        .gte('starts_at', state.comparisonStart.toISOString())
+        .lte('starts_at', state.comparisonEnd.toISOString())
+        .order('starts_at'),
+      supabase.from('barber_hours').select('barber_id, isoweekday, opens_at, closes_at'),
+      supabase
+        .from('time_off')
+        .select('barber_id, starts_at, ends_at, is_all_day')
+        .lte('starts_at', state.end.toISOString())
+        .gte('ends_at', state.comparisonStart.toISOString()),
+    ]).then(([curRes, cmpRes, hoursRes, offRes]) => {
+      if (cancelled) return
+      setCurrentBookings((curRes.data ?? []) as unknown as BookingForKPI[])
+      setComparisonBookings((cmpRes.data ?? []) as unknown as BookingForKPI[])
+      setBarberHours((hoursRes.data ?? []) as BarberHourRow[])
+      setTimeOff((offRes.data ?? []) as TimeOffRow[])
+      setLoading(false)
+    })
 
     return () => {
       cancelled = true
     }
-  }, [selectedMonths])
+  }, [state.start, state.end, state.comparisonStart, state.comparisonEnd])
 
-  const stats = useMemo(() => {
-    const revenueOre = bookings
-      .filter((b) => b.status === 'confirmed' || b.status === 'completed')
-      .reduce((sum, b) => sum + (b.price_ore ?? 0), 0)
-    return {
-      revenueOre,
-      total: bookings.length,
-      online: bookings.filter((b) => b.source === 'web').length,
-      phone: bookings.filter((b) => b.source === 'phone').length,
-    }
-  }, [bookings])
+  const activeBarberIds = useMemo(() => barbers.map((b) => b.id), [barbers])
 
-  const perService = useMemo(() => {
-    const map = new Map<string, { count: number; revenueOre: number }>()
-    for (const b of bookings) {
-      const name = b.service?.name_da
-      if (!name) continue
-      const cur = map.get(name) ?? { count: 0, revenueOre: 0 }
-      cur.count += 1
-      if (b.status === 'confirmed' || b.status === 'completed') {
-        cur.revenueOre += b.price_ore ?? 0
-      }
-      map.set(name, cur)
-    }
-    return Array.from(map.entries())
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.revenueOre - a.revenueOre)
-  }, [bookings])
+  const workingMinutes = useMemo(
+    () => calculateWorkingMinutes(state.start, state.end, activeBarberIds, barberHours, timeOff),
+    [state.start, state.end, activeBarberIds, barberHours, timeOff],
+  )
+  const comparisonWorkingMinutes = useMemo(
+    () =>
+      calculateWorkingMinutes(
+        state.comparisonStart,
+        state.comparisonEnd,
+        activeBarberIds,
+        barberHours,
+        timeOff,
+      ),
+    [state.comparisonStart, state.comparisonEnd, activeBarberIds, barberHours, timeOff],
+  )
 
-  const perBarber = useMemo(() => {
-    const map = new Map<string, { count: number; revenueOre: number }>()
-    for (const b of bookings) {
-      const name = b.barber?.display_name
-      if (!name) continue
-      const cur = map.get(name) ?? { count: 0, revenueOre: 0 }
-      cur.count += 1
-      if (b.status === 'confirmed' || b.status === 'completed') {
-        cur.revenueOre += b.price_ore ?? 0
-      }
-      map.set(name, cur)
-    }
-    return Array.from(map.entries())
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.revenueOre - a.revenueOre)
-  }, [bookings])
+  const handleTileClick = (target: 'revenue' | 'avg' | 'count' | 'occupancy' | 'noShows') => {
+    const id = target === 'revenue'
+      ? 'section-chart'
+      : target === 'count' || target === 'occupancy' || target === 'avg'
+      ? 'section-barbers'
+      : 'section-missed'
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
-    <div className="md:h-full md:overflow-y-auto md:pr-1 space-y-5">
+    <div className="md:h-full md:overflow-y-auto md:pr-1 space-y-8">
       <div>
-        <h1 className="font-serif text-[24px] text-gray-900">Økonomi</h1>
-        <p className="text-sm text-gray-500 leading-relaxed mt-1">
-          Omsætning og fordeling pr. ydelse og frisør. Vælg en periode for at se data.
-        </p>
+        <h1 className="font-serif text-[28px] text-gray-900 leading-tight">Økonomi</h1>
+        <p className="text-sm text-gray-500 mt-1">Komplet finansielt overblik for Design Klip</p>
       </div>
 
-      <Card padding="sm">
-        <MonthRangePicker
-          value={selectedMonths}
-          max={maxMonths}
-          onChange={setSelectedMonths}
+      <FilterBar
+        preset={state.preset}
+        start={state.start}
+        end={state.end}
+        comparison={state.comparison}
+        onPresetChange={setPreset}
+        onCustomRange={setCustomRange}
+        onComparisonChange={setComparison}
+      />
+
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 h-[100px] animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <KPITileRow
+          current={currentBookings}
+          comparison={comparisonBookings}
+          comparisonMode={state.comparison}
+          workingMinutes={workingMinutes}
+          comparisonWorkingMinutes={comparisonWorkingMinutes}
+          onTileClick={handleTileClick}
         />
-      </Card>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="i perioden" value={loading ? null : formatDanishKr(stats.revenueOre)} title="Omsætning" />
-        <StatCard label="bookinger i alt" value={loading ? null : String(stats.total)} title="Bookinger" />
-        <StatCard label="online" value={loading ? null : String(stats.online)} title="Online" />
-        <StatCard label="telefon" value={loading ? null : String(stats.phone)} title="Telefon" />
-      </div>
-
-      {/* Empty state */}
-      {!loading && bookings.length === 0 && (
-        <Card padding="lg">
-          <p className="text-sm text-gray-500 italic text-center">
-            Ingen bookinger i denne periode.
-          </p>
-        </Card>
-      )}
-
-      {/* Per-service breakdown */}
-      {!loading && perService.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium text-gray-900 mb-3">Fordeling på ydelser</h2>
-          <Card padding="none">
-            <div className="divide-y divide-gray-100">
-              {perService.map((s) => (
-                <div key={s.name} className="flex items-center px-4 py-3 gap-3">
-                  <span className="text-sm text-gray-900 flex-1 min-w-0 truncate">{s.name}</span>
-                  <span className="text-xs text-gray-500 w-16 text-center">
-                    {s.count} {s.count === 1 ? 'booking' : 'bookinger'}
-                  </span>
-                  <span className="text-sm font-medium text-[#B08A3E] tabular-nums w-24 text-right">
-                    {formatDanishKr(s.revenueOre)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Per-barber breakdown */}
-      {!loading && perBarber.length > 0 && (
-        <div>
-          <h2 className="text-sm font-medium text-gray-900 mb-3">Fordeling på frisører</h2>
-          <Card padding="none">
-            <div className="divide-y divide-gray-100">
-              {perBarber.map((b) => (
-                <div key={b.name} className="flex items-center px-4 py-3 gap-3">
-                  <span className="text-sm text-gray-900 flex-1 min-w-0 truncate">{b.name}</span>
-                  <span className="text-xs text-gray-500 w-16 text-center">
-                    {b.count} {b.count === 1 ? 'klip' : 'klip'}
-                  </span>
-                  <span className="text-sm font-medium text-[#B08A3E] tabular-nums w-24 text-right">
-                    {formatDanishKr(b.revenueOre)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
       )}
     </div>
-  )
-}
-
-function StatCard({ label, value, title }: { label: string; value: string | null; title: string }) {
-  return (
-    <Card padding="sm">
-      <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">{title}</p>
-      {value === null ? (
-        <div className="mt-2 h-7 bg-gray-100 rounded animate-pulse" />
-      ) : (
-        <p className="font-serif text-[24px] text-gray-900 leading-none mt-1">{value}</p>
-      )}
-      <p className="text-xs text-gray-500 mt-1">{label}</p>
-    </Card>
   )
 }
