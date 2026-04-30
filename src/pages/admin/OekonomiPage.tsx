@@ -10,6 +10,8 @@ import { RevenueChart } from '../../components/admin/oekonomi/RevenueChart'
 import { BarberLeaderboard } from '../../components/admin/oekonomi/BarberLeaderboard'
 import { ServiceBreakdown } from '../../components/admin/oekonomi/ServiceBreakdown'
 import { PaymentMethodSplit } from '../../components/admin/oekonomi/PaymentMethodSplit'
+import { MissedRevenueCard } from '../../components/admin/oekonomi/MissedRevenueCard'
+import { CustomerInsights } from '../../components/admin/oekonomi/CustomerInsights'
 import { getIsoWeekday } from '../../utils/revenueUtils'
 
 interface BarberHourRow {
@@ -210,6 +212,14 @@ export function OekonomiPage() {
           <ServiceBreakdown bookings={currentBookings} />
 
           <PaymentMethodSplit bookings={currentBookings} />
+
+          <MissedRevenueCard
+            current={currentBookings}
+            comparison={comparisonBookings}
+            comparisonMode={state.comparison}
+          />
+
+          <CustomerInsights current={currentBookings} start={state.start} end={state.end} />
         </>
       )}
     </div>
