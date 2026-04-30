@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { TimeOffRangePicker } from './TimeOffRangePicker'
 
 interface TimeOffManagerProps {
   barberId: string
@@ -28,8 +29,6 @@ function formatDanishDate(starts_at: string): string {
 export function TimeOffManager({ barberId }: TimeOffManagerProps) {
   const [rows, setRows] = useState<TimeOffRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [newDate, setNewDate] = useState('')
-  const [newReason, setNewReason] = useState('')
   const [adding, setAdding] = useState(false)
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -55,24 +54,37 @@ export function TimeOffManager({ barberId }: TimeOffManagerProps) {
 
   const refresh = () => setRefreshKey((k) => k + 1)
 
-  const handleAdd = async () => {
-    if (!newDate) return
+  // Insert one row per day in the range. Uses local Copenhagen midnight on each
+  // day, expressed in UTC via Date#toISOString.
+  const handleAddRange = async (rangeStart: Date, rangeEnd: Date, reason: string) => {
     setAdding(true)
-    // Build local-midnight timestamps for the chosen date
-    const dayStart = new Date(`${newDate}T00:00:00`)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
+    const inserts: Array<{
+      barber_id: string
+      starts_at: string
+      ends_at: string
+      is_all_day: boolean
+      reason: string | null
+    }> = []
 
-    await supabase.from('time_off').insert({
-      barber_id: barberId,
-      starts_at: dayStart.toISOString(),
-      ends_at: dayEnd.toISOString(),
-      reason: newReason.trim() || null,
-      is_all_day: true,
-    })
+    const cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate())
+    const stop = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate())
+    while (cur <= stop) {
+      const dayStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate())
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+      inserts.push({
+        barber_id: barberId,
+        starts_at: dayStart.toISOString(),
+        ends_at: dayEnd.toISOString(),
+        is_all_day: true,
+        reason: reason || null,
+      })
+      cur.setDate(cur.getDate() + 1)
+    }
 
-    setNewDate('')
-    setNewReason('')
+    if (inserts.length > 0) {
+      await supabase.from('time_off').insert(inserts)
+    }
     setAdding(false)
     refresh()
   }
@@ -133,35 +145,27 @@ export function TimeOffManager({ barberId }: TimeOffManagerProps) {
         )}
       </div>
 
-      {/* Add form */}
+      {/* Range-picker add form */}
       <div className="border-t border-gray-100 pt-3 space-y-2">
         <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-medium">
-          Tilføj fridag
+          Tilføj fridag(e)
         </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="date"
-            min={today}
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-            className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-[#B08A3E]"
-          />
-          <input
-            type="text"
-            value={newReason}
-            onChange={(e) => setNewReason(e.target.value)}
-            placeholder="Ferie, syg, andet…"
-            className="flex-1 border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-700 outline-none focus:border-[#B08A3E]"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!newDate || adding}
-            className="px-3 py-1.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-md transition-colors disabled:opacity-50"
-          >
-            Tilføj
-          </button>
-        </div>
+        <TimeOffRangePicker onSubmit={handleAddRange} submitting={adding} />
       </div>
+
+      {/*
+        Legacy single-day form — kept commented for reference.
+        Replaced in 6f by TimeOffRangePicker (multi-day support).
+
+        <div className="border-t border-gray-100 pt-3 space-y-2">
+          <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-medium">Tilføj fridag</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input type="date" min={today} value={newDate} onChange={(e) => setNewDate(e.target.value)} ... />
+            <input type="text" value={newReason} onChange={(e) => setNewReason(e.target.value)} ... />
+            <button onClick={handleAdd} disabled={!newDate || adding}>Tilføj</button>
+          </div>
+        </div>
+      */}
     </div>
   )
 }

@@ -83,6 +83,7 @@ export function BookingDetailPage() {
         author_id: user.id,
         body: `Klip: ${cutDetails.trim()}`,
         tags: ['klip'],
+        booking_id: booking.id,
       })
     }
     await supabase

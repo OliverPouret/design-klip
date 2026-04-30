@@ -38,6 +38,12 @@ interface CustNote {
   created_at: string
 }
 
+interface BookingLinkedNote {
+  id: string
+  body: string
+  created_at: string
+}
+
 const STATUS_LABEL: Record<string, string> = {
   confirmed: 'Bekræftet',
   pending: 'Afventer',
@@ -55,6 +61,11 @@ export function CustomersPage() {
   const [detail, setDetail] = useState<CustomerDetail | null>(null)
   const [bookings, setBookings] = useState<BookingHistory[]>([])
   const [notes, setNotes] = useState<CustNote[]>([])
+  // Bookings that have linked notes (for showing the expand arrow)
+  const [bookingsWithNotes, setBookingsWithNotes] = useState<Set<string>>(new Set())
+  // Expanded booking rows + their lazy-loaded notes
+  const [expandedNotes, setExpandedNotes] = useState<Map<string, BookingLinkedNote[]>>(new Map())
+  const [expandedBookings, setExpandedBookings] = useState<Set<string>>(new Set())
   const [newNote, setNewNote] = useState('')
   const [detailLoading, setDetailLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
@@ -92,10 +103,27 @@ export function CustomersPage() {
         .limit(50)
       if (bk) setBookings(bk as unknown as BookingHistory[])
 
+      // Find which bookings have linked notes (so we know where to show the arrow).
+      const { data: linkedRows } = await supabase
+        .from('customer_notes')
+        .select('booking_id')
+        .eq('customer_id', selectedId)
+        .not('booking_id', 'is', null)
+      const linkedSet = new Set<string>()
+      ;(linkedRows as { booking_id: string | null }[] | null)?.forEach((r) => {
+        if (r.booking_id) linkedSet.add(r.booking_id)
+      })
+      setBookingsWithNotes(linkedSet)
+      setExpandedNotes(new Map())
+      setExpandedBookings(new Set())
+
+      // Kundenoter section: only general notes (not linked to a specific booking).
+      // Booking-linked notes appear in the booking's Historik row instead.
       const { data: cn } = await supabase
         .from('customer_notes')
         .select('id, body, created_at')
         .eq('customer_id', selectedId)
+        .is('booking_id', null)
         .order('created_at', { ascending: false })
       if (cn) setNotes(cn as CustNote[])
 
@@ -103,6 +131,30 @@ export function CustomersPage() {
     }
     fetchDetail()
   }, [selectedId])
+
+  const toggleBookingNotes = async (bookingId: string) => {
+    if (expandedBookings.has(bookingId)) {
+      const next = new Set(expandedBookings)
+      next.delete(bookingId)
+      setExpandedBookings(next)
+      return
+    }
+
+    if (!expandedNotes.has(bookingId)) {
+      const { data } = await supabase
+        .from('customer_notes')
+        .select('id, body, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: false })
+      const next = new Map(expandedNotes)
+      next.set(bookingId, (data as BookingLinkedNote[] | null) ?? [])
+      setExpandedNotes(next)
+    }
+
+    const next = new Set(expandedBookings)
+    next.add(bookingId)
+    setExpandedBookings(next)
+  }
 
   const handleAddNote = async () => {
     if (!selectedId || !newNote.trim() || !user) return
@@ -377,35 +429,70 @@ export function CustomersPage() {
                 {bookings.length === 0 ? (
                   <p className="text-xs text-gray-400">Ingen bookinger endnu.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {bookings.map((bk) => (
-                      <div
-                        key={bk.id}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                      >
-                        <div>
-                          <p className="text-sm text-gray-700">
-                            {bk.service.name_da} hos {bk.barber.display_name}
-                            {bk.source === 'phone' && ' · 📞'}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {new Date(bk.starts_at).toLocaleDateString('da-DK', {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                            {' kl. '}
-                            {new Date(bk.starts_at).toLocaleTimeString('da-DK', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+                  <div className="space-y-1">
+                    {bookings.map((bk) => {
+                      const hasNotes = bookingsWithNotes.has(bk.id)
+                      const isExpanded = expandedBookings.has(bk.id)
+                      const notesForBooking = expandedNotes.get(bk.id) ?? []
+                      return (
+                        <div key={bk.id} className="border-b border-gray-100 last:border-0">
+                          <div className="flex items-center justify-between py-2 gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm text-gray-700 truncate">
+                                {bk.service.name_da} hos {bk.barber.display_name}
+                                {bk.source === 'phone' && ' · 📞'}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(bk.starts_at).toLocaleDateString('da-DK', {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                                {' kl. '}
+                                {new Date(bk.starts_at).toLocaleTimeString('da-DK', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+                                {STATUS_LABEL[bk.status] ?? bk.status}
+                              </span>
+                              {hasNotes && (
+                                <button
+                                  onClick={() => toggleBookingNotes(bk.id)}
+                                  className="text-gray-400 hover:text-gray-700 transition-colors text-xs leading-none"
+                                  aria-label={isExpanded ? 'Skjul noter' : 'Vis noter'}
+                                >
+                                  {isExpanded ? '▼' : '▶'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {isExpanded && hasNotes && (
+                            <div className="pb-3 pl-3 border-l-2 border-[#B08A3E]/40 ml-1 space-y-2">
+                              {notesForBooking.length === 0 ? (
+                                <p className="text-xs text-gray-400">Henter noter…</p>
+                              ) : (
+                                notesForBooking.map((n) => (
+                                  <div key={n.id}>
+                                    <p className="text-sm text-gray-700">{n.body}</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">
+                                      {new Date(n.created_at).toLocaleDateString('da-DK', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })}
+                                    </p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">
-                          {STATUS_LABEL[bk.status] ?? bk.status}
-                        </span>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
