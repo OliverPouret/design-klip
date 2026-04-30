@@ -311,7 +311,7 @@ export function CustomersPage() {
                   <button
                     onClick={handleGenerateProfile}
                     disabled={aiLoading}
-                    className="text-xs text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
                   >
                     {aiLoading ? 'Genererer…' : detail.notes_summary ? '↻ Opdatér' : '✨ Generér profil'}
                   </button>

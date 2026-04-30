@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { Card } from '../../components/admin/Card'
@@ -10,14 +9,30 @@ const MONTH_FULL = [
 ]
 const WEEKDAY_HEADERS = ['M', 'T', 'O', 'T', 'F', 'L', 'S']
 
+interface DayBooking {
+  id: string
+  starts_at: string
+  ends_at: string
+  duration_minutes: number
+  status: string
+  source: string
+  barber_id: string
+  customer: { id: string; full_name: string }
+  service: { name_da: string }
+  barber: { display_name: string; slug: string }
+}
+
 export function CalendarPage() {
-  const navigate = useNavigate()
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [dayViewDate, setDayViewDate] = useState<Date | null>(null)
+  const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
+  const [dayLoading, setDayLoading] = useState(false)
+  const dayPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -81,13 +96,37 @@ export function CalendarPage() {
     setViewMonth(d)
   }
 
-  const handleDayClick = (d: Date) => {
-    sessionStorage.setItem('admin_view_date', isoDate(d))
-    navigate('/admin/i-dag')
+  const handleDayClick = async (date: Date) => {
+    setDayViewDate(date)
+    setDayLoading(true)
+    setDayBookings([])
+
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+
+    const { data } = await supabase
+      .from('bookings')
+      .select(`
+        id, starts_at, ends_at, duration_minutes, status, source, barber_id,
+        customer:customers!inner(id, full_name),
+        service:services!inner(name_da),
+        barber:barbers!inner(display_name, slug)
+      `)
+      .gte('starts_at', start.toISOString())
+      .lt('starts_at', end.toISOString())
+      .in('status', ['confirmed', 'pending', 'completed', 'no_show'])
+      .order('starts_at')
+
+    setDayBookings((data ?? []) as unknown as DayBooking[])
+    setDayLoading(false)
+
+    setTimeout(() => {
+      dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
   }
 
   return (
-    <div className="md:h-full md:flex md:flex-col md:gap-3 md:min-h-0">
+    <div className="md:h-full md:overflow-y-auto md:flex md:flex-col md:gap-3 md:pr-1 space-y-3 md:space-y-0">
       {/* Month nav */}
       <Card padding="sm" className="flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -110,10 +149,10 @@ export function CalendarPage() {
       </Card>
 
       {/* Main row: calendar + side stats on desktop, stacked on mobile */}
-      <div className="md:flex-1 md:min-h-0 grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3 flex-shrink-0">
         {/* Calendar grid */}
-        <Card padding="sm" className="md:flex md:flex-col md:min-h-0">
-          <div className="grid grid-cols-7 mb-2 flex-shrink-0">
+        <Card padding="sm">
+          <div className="grid grid-cols-7 mb-2">
             {WEEKDAY_HEADERS.map((d, i) => (
               <div
                 key={i}
@@ -124,7 +163,7 @@ export function CalendarPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-7 grid-rows-6 gap-1 md:flex-1 md:min-h-0">
+          <div className="grid grid-cols-7 grid-rows-6 gap-1">
             {days.map((d, i) => {
               const key = isoDate(d)
               const count = counts[key] ?? 0
@@ -143,7 +182,7 @@ export function CalendarPage() {
                   key={i}
                   onClick={() => handleDayClick(d)}
                   disabled={loading}
-                  className={`min-h-0 rounded-md text-left p-1.5 border border-gray-200 transition-colors flex flex-col ${
+                  className={`min-h-[64px] rounded-md text-left p-1.5 border border-gray-200 transition-colors flex flex-col ${
                     isOutside
                       ? 'opacity-30'
                       : isSunday
@@ -195,6 +234,62 @@ export function CalendarPage() {
           </Card>
         </div>
       </div>
+
+      {/* Day panel — appears when a day is clicked */}
+      {dayViewDate && (
+        <div ref={dayPanelRef} className="flex-shrink-0">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+              <h2 className="text-sm font-medium text-gray-900 capitalize">
+                {dayViewDate.toLocaleDateString('da-DK', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </h2>
+              <button
+                onClick={() => setDayViewDate(null)}
+                className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                ✕ Luk
+              </button>
+            </div>
+
+            {dayLoading ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Henter bookinger…</p>
+              </div>
+            ) : dayBookings.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Ingen bookinger denne dag.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {dayBookings.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{b.customer.full_name}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {b.service.name_da} · {b.barber.display_name}
+                        {b.source === 'phone' && ' · 📞'}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="text-sm text-gray-700">
+                        {new Date(b.starts_at).toLocaleTimeString('da-DK', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      <p className="text-xs text-gray-400">{b.duration_minutes} min</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
