@@ -6,6 +6,7 @@ import { useBarbers } from '../../hooks/useBarbers'
 import { formatDKK } from '../../types/database'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { AssignedBarberRow } from '../../components/admin/booking/AssignedBarberRow'
+import { getDisabledDates } from '../../utils/barberAvailability'
 
 interface Slot {
   slot_starts_at: string
@@ -311,22 +312,7 @@ export function CreateBookingPage() {
   }
 
   // Build a Set of disabled date strings (YYYY-MM-DD) from time_off ranges.
-  // Iterate day-by-day with local Copenhagen components — never use toISOString here.
-  const disabledDates = useMemo(() => {
-    const set = new Set<string>()
-    for (const entry of barberTimeOff) {
-      const start = new Date(entry.starts_at)
-      const end = new Date(entry.ends_at)
-      // Walk from local-midnight of start through (but not including) local-midnight of end
-      const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-      const stop = new Date(end.getFullYear(), end.getMonth(), end.getDate())
-      while (cur < stop) {
-        set.add(isoDate(cur))
-        cur.setDate(cur.getDate() + 1)
-      }
-    }
-    return set
-  }, [barberTimeOff])
+  const disabledDates = useMemo(() => getDisabledDates(barberTimeOff), [barberTimeOff])
 
   const isDayDisabled = (d: Date) => {
     if (d < today) return true
@@ -484,28 +470,26 @@ export function CreateBookingPage() {
             </div>
 
             {/* Barber */}
-            {serviceId && (
-              <div>
-                <SectionLabel>Frisør</SectionLabel>
-                <div className="grid grid-cols-2 gap-2">
+            <div>
+              <SectionLabel>Frisør</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleBarberSelect(null)}
+                  className={`${SELECT_BTN} ${barberId === null ? SELECT_ACTIVE : SELECT_DEFAULT}`}
+                >
+                  Første ledige
+                </button>
+                {barbers.map((b) => (
                   <button
-                    onClick={() => handleBarberSelect(null)}
-                    className={`${SELECT_BTN} ${barberId === null ? SELECT_ACTIVE : SELECT_DEFAULT}`}
+                    key={b.id}
+                    onClick={() => handleBarberSelect(b.id)}
+                    className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                   >
-                    Første ledige
+                    {b.display_name}
                   </button>
-                  {barbers.map((b) => (
-                    <button
-                      key={b.id}
-                      onClick={() => handleBarberSelect(b.id)}
-                      className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
-                    >
-                      {b.display_name}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
+            </div>
 
             {/* Date — full month calendar (always visible) */}
             <div>

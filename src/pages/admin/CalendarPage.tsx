@@ -335,26 +335,25 @@ export function CalendarPage() {
                 <span className="text-gray-500">Frisør</span>
                 <span className="text-gray-900">{manageBooking.barber.display_name}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-gray-500">Tid</span>
-                <span className="flex items-center gap-2">
-                  <span className="text-gray-900">
-                    {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                    {' — '}
-                    {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  <button
-                    onClick={() => setShowReschedule(true)}
-                    className="text-xs text-[#B08A3E] hover:text-[#8C6A28] transition-colors"
-                  >
-                    Skift tid →
-                  </button>
+                <button
+                  onClick={() => setShowReschedule(true)}
+                  className="border border-[#B08A3E] text-[#B08A3E] hover:bg-[#B08A3E] hover:text-white text-xs px-3 py-1 rounded transition-colors"
+                >
+                  Skift tid
+                </button>
+                <span className="flex-1" />
+                <span className="text-gray-900">
+                  {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                  {' — '}
+                  {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
               </div>
               <div className="flex justify-between">

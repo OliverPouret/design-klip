@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { isoDate, isoWeekday } from '../../../lib/danishDates'
+import { getDisabledDates, getNonWorkingDays } from '../../../utils/barberAvailability'
 
 interface RescheduleModalProps {
   booking: {
@@ -49,6 +50,33 @@ export function RescheduleModal({ booking, onRescheduled, onClose }: RescheduleM
   const [selectedSlotIso, setSelectedSlotIso] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Barber's regular schedule + upcoming time off — used to grey out days
+  const [nonWorkingDays, setNonWorkingDays] = useState<Set<number>>(new Set())
+  const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      supabase
+        .from('barber_hours')
+        .select('isoweekday, opens_at')
+        .eq('barber_id', booking.barber_id),
+      supabase
+        .from('time_off')
+        .select('starts_at, ends_at')
+        .eq('barber_id', booking.barber_id)
+        .gte('ends_at', new Date().toISOString()),
+    ]).then(([hoursRes, timeOffRes]) => {
+      if (cancelled) return
+      const hours = (hoursRes.data ?? []) as { isoweekday: number; opens_at: string | null }[]
+      const offs = (timeOffRes.data ?? []) as { starts_at: string; ends_at: string }[]
+      setNonWorkingDays(getNonWorkingDays(hours))
+      setDisabledDates(getDisabledDates(offs))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [booking.barber_id])
 
   const currentStartsAt = useMemo(() => new Date(booking.starts_at), [booking.starts_at])
   const durationMs = useMemo(
@@ -94,6 +122,8 @@ export function RescheduleModal({ booking, onRescheduled, onClose }: RescheduleM
     if (d < today) return true
     if (d.getMonth() !== calMonth) return true
     if (isoWeekday(d) === 7) return true // Sunday
+    if (nonWorkingDays.has(isoWeekday(d))) return true
+    if (disabledDates.has(isoDate(d))) return true
     return false
   }
 
