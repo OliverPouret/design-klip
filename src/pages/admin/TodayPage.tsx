@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useBarbers } from '../../hooks/useBarbers'
@@ -18,7 +18,8 @@ interface BookingBlock {
   service: { name_da: string }
 }
 
-const SLOT_HEIGHT = 60 // px per 30 minutes
+const MIN_SLOT_HEIGHT = 30 // px — floor so blocks stay readable
+const DEFAULT_SLOT_HEIGHT = 60 // px — initial value before measurement
 const WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
 export function TodayPage() {
@@ -39,6 +40,8 @@ export function TodayPage() {
   const [loading, setLoading] = useState(true)
   const [insights, setInsights] = useState<string | null>(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
+  const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT)
+  const timelineBodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (barbers.length === 0) return
@@ -113,7 +116,27 @@ export function TodayPage() {
   const startMinutes = parseInt(gridStart.split(':')[0]) * 60 + parseInt(gridStart.split(':')[1])
   const endMinutes = parseInt(gridEnd.split(':')[0]) * 60 + parseInt(gridEnd.split(':')[1])
   const totalSlots = Math.ceil((endMinutes - startMinutes) / 30)
-  const totalHeight = totalSlots * SLOT_HEIGHT
+  const totalHeight = totalSlots * slotHeight
+
+  // Measure the timeline body height and divide across slots so the day fits
+  // the available frame on desktop. Floor at MIN_SLOT_HEIGHT so blocks stay readable.
+  useEffect(() => {
+    if (totalSlots === 0) return
+    const el = timelineBodyRef.current
+    if (!el) return
+
+    const measure = () => {
+      const available = el.clientHeight
+      if (available > 0) {
+        setSlotHeight(Math.max(MIN_SLOT_HEIGHT, available / totalSlots))
+      }
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [totalSlots])
 
   const timeLabels: string[] = []
   for (let m = startMinutes; m < endMinutes; m += 30) {
@@ -126,8 +149,8 @@ export function TodayPage() {
     const bStart = new Date(booking.starts_at)
     const bookingMinutes = bStart.getHours() * 60 + bStart.getMinutes()
     const offset = bookingMinutes - startMinutes
-    const top = (offset / 30) * SLOT_HEIGHT
-    const height = (booking.duration_minutes / 30) * SLOT_HEIGHT
+    const top = (offset / 30) * slotHeight
+    const height = (booking.duration_minutes / 30) * slotHeight
     return { top: `${top}px`, height: `${height}px` }
   }
 
@@ -163,160 +186,170 @@ export function TodayPage() {
   if (loading) return <p className="text-sm text-[#8A8A8A]">Henter program…</p>
 
   return (
-    <div className="space-y-4">
+    <div className="md:h-full flex flex-col gap-3 md:gap-4 md:min-h-0">
       {/* Business insights */}
-      <Card padding="sm">
-        {!insights ? (
-          <button
-            onClick={handleGenerateInsights}
-            disabled={insightsLoading}
-            className="flex items-center gap-2 text-sm text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
-          >
-            {insightsLoading ? 'Analyserer…' : '📊 Forretningsoverblik'}
-          </button>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">Forretningsoverblik</p>
-              <button onClick={() => setInsights(null)} className="text-[11px] text-[#8A8A8A] hover:text-ink">
-                Luk
-              </button>
+      <div className="flex-shrink-0">
+        <Card padding="sm">
+          {!insights ? (
+            <button
+              onClick={handleGenerateInsights}
+              disabled={insightsLoading}
+              className="flex items-center gap-2 text-sm text-[#B08A3E] hover:text-[#8C6A28] transition-colors disabled:opacity-60"
+            >
+              {insightsLoading ? 'Analyserer…' : '📊 Forretningsoverblik'}
+            </button>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] font-medium">Forretningsoverblik</p>
+                <button onClick={() => setInsights(null)} className="text-[11px] text-[#8A8A8A] hover:text-ink">
+                  Luk
+                </button>
+              </div>
+              <div className="text-sm text-ink leading-relaxed whitespace-pre-line">{insights}</div>
             </div>
-            <div className="text-sm text-ink leading-relaxed whitespace-pre-line">{insights}</div>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      </div>
 
       {/* Day navigation */}
-      <Card padding="sm">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={prevDay}
-            className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
-          >
-            ← Forrige
-          </button>
-          <div className="text-center">
-            <h1 className="font-serif text-[18px] text-ink">
-              {WEEKDAYS[viewDate.getDay()]} d. {viewDate.getDate()}.{' '}
-              {viewDate.toLocaleDateString('da-DK', { month: 'long' })}
-            </h1>
-            {!isToday && (
-              <button onClick={goToday} className="text-[11px] text-[#B08A3E] hover:text-[#8C6A28] mt-0.5">
-                I dag
-              </button>
-            )}
+      <div className="flex-shrink-0">
+        <Card padding="sm">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={prevDay}
+              className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
+            >
+              ← Forrige
+            </button>
+            <div className="text-center">
+              <h1 className="font-serif text-[18px] text-ink">
+                {WEEKDAYS[viewDate.getDay()]} d. {viewDate.getDate()}.{' '}
+                {viewDate.toLocaleDateString('da-DK', { month: 'long' })}
+              </h1>
+              {!isToday && (
+                <button onClick={goToday} className="text-[11px] text-[#B08A3E] hover:text-[#8C6A28] mt-0.5">
+                  I dag
+                </button>
+              )}
+            </div>
+            <button
+              onClick={nextDay}
+              className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
+            >
+              Næste →
+            </button>
           </div>
-          <button
-            onClick={nextDay}
-            className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
+        </Card>
+      </div>
+
+      {/* Schedule grid — fills remaining vertical space on desktop */}
+      <div className="md:flex-1 md:min-h-0">
+        <Card padding="none" className="md:h-full md:flex md:flex-col md:overflow-hidden">
+          {/* Barber headers */}
+          <div
+            className="grid border-b border-gray-200 rounded-t-lg overflow-hidden flex-shrink-0"
+            style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
           >
-            Næste →
-          </button>
-        </div>
-      </Card>
-
-      {/* Schedule grid */}
-      <Card padding="none">
-        {/* Barber headers */}
-        <div
-          className="grid border-b border-gray-200 rounded-t-lg overflow-hidden"
-          style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
-        >
-          <div className="p-2.5 bg-[#FAFAF8]" />
-          {barbers.map((barber) => {
-            const hours = barberHours[barber.id]
-            const isOff = !hours
-            return (
-              <div
-                key={barber.id}
-                className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
-              >
-                <p className="text-[13px] font-medium text-ink">{barber.display_name}</p>
-                {isOff && <p className="text-[11px] text-[#8A8A8A] mt-0.5">Fri i dag</p>}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Timeline body */}
-        <div className="grid rounded-b-lg overflow-x-auto overflow-y-hidden" style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}>
-          {/* Time labels column */}
-          <div className="relative" style={{ height: `${totalHeight}px` }}>
-            {timeLabels.map((label, i) => (
-              <div
-                key={label}
-                className="absolute right-0 pr-2 text-right"
-                style={{ top: `${i * SLOT_HEIGHT}px`, height: `${SLOT_HEIGHT}px`, lineHeight: `${SLOT_HEIGHT}px` }}
-              >
-                <span className="text-[11px] text-[#8A8A8A]">{label}</span>
-              </div>
-            ))}
+            <div className="p-2.5 bg-[#FAFAF8]" />
+            {barbers.map((barber) => {
+              const hours = barberHours[barber.id]
+              const isOff = !hours
+              return (
+                <div
+                  key={barber.id}
+                  className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
+                >
+                  <p className="text-[13px] font-medium text-ink">{barber.display_name}</p>
+                  {isOff && <p className="text-[11px] text-[#8A8A8A] mt-0.5">Fri i dag</p>}
+                </div>
+              )
+            })}
           </div>
 
-          {/* Barber columns */}
-          {barbers.map((barber) => {
-            const hours = barberHours[barber.id]
-            const isOff = !hours
-            const barberBookings = bookings.filter((b) => b.barber_id === barber.id)
+          {/* Timeline body — flex-1 on desktop for dynamic slot sizing */}
+          <div
+            ref={timelineBodyRef}
+            className="grid md:flex-1 rounded-b-lg overflow-x-auto overflow-y-hidden"
+            style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
+          >
+            {/* Time labels column */}
+            <div className="relative" style={{ height: `${totalHeight}px` }}>
+              {timeLabels.map((label, i) => (
+                <div
+                  key={label}
+                  className="absolute right-0 pr-2 text-right"
+                  style={{ top: `${i * slotHeight}px`, height: `${slotHeight}px`, lineHeight: `${slotHeight}px` }}
+                >
+                  <span className="text-[11px] text-[#8A8A8A]">{label}</span>
+                </div>
+              ))}
+            </div>
 
-            return (
-              <div
-                key={barber.id}
-                className={`relative border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
-                style={{ height: `${totalHeight}px` }}
-              >
-                {/* Grid lines — barely visible */}
-                {timeLabels.map((_, i) => (
-                  <div
-                    key={`grid-${barber.id}-${i}`}
-                    className="absolute left-0 right-0"
-                    style={{ top: `${i * SLOT_HEIGHT}px`, borderBottom: '1px solid rgba(0,0,0,0.04)' }}
-                  />
-                ))}
+            {/* Barber columns */}
+            {barbers.map((barber) => {
+              const hours = barberHours[barber.id]
+              const isOff = !hours
+              const barberBookings = bookings.filter((b) => b.barber_id === barber.id)
 
-                {/* Booking blocks */}
-                {!isOff &&
-                  barberBookings.map((booking) => {
-                    const style = getBlockStyle(booking)
-                    const hasNote = noteFlags[booking.customer.id]
-                    return (
-                      <Link
-                        key={booking.id}
-                        to={`/admin/booking/${booking.id}`}
-                        className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/30 transition-all"
-                        style={{ top: style.top, height: style.height, minHeight: '32px' }}
-                      >
-                        <div
-                          className="h-full border-l-[3px] px-2.5 py-1.5 bg-[#FAFAF8]"
-                          style={{ borderColor: barber.profile_color || '#B08A3E' }}
+              return (
+                <div
+                  key={barber.id}
+                  className={`relative border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
+                  style={{ height: `${totalHeight}px` }}
+                >
+                  {/* Grid lines — barely visible */}
+                  {timeLabels.map((_, i) => (
+                    <div
+                      key={`grid-${barber.id}-${i}`}
+                      className="absolute left-0 right-0"
+                      style={{ top: `${i * slotHeight}px`, borderBottom: '1px solid rgba(0,0,0,0.04)' }}
+                    />
+                  ))}
+
+                  {/* Booking blocks */}
+                  {!isOff &&
+                    barberBookings.map((booking) => {
+                      const style = getBlockStyle(booking)
+                      const hasNote = noteFlags[booking.customer.id]
+                      return (
+                        <Link
+                          key={booking.id}
+                          to={`/admin/booking/${booking.id}`}
+                          className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/30 transition-all"
+                          style={{ top: style.top, height: style.height, minHeight: '28px' }}
                         >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12px] font-medium text-ink truncate">
-                              {booking.customer.full_name}
-                            </span>
-                            {hasNote && (
-                              <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#9B2C2C] text-white text-[8px] flex items-center justify-center font-bold leading-none">
-                                !
+                          <div
+                            className="h-full border-l-[3px] px-2.5 py-1 bg-[#FAFAF8]"
+                            style={{ borderColor: barber.profile_color || '#B08A3E' }}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[12px] font-medium text-ink truncate">
+                                {booking.customer.full_name}
                               </span>
-                            )}
+                              {hasNote && (
+                                <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#9B2C2C] text-white text-[8px] flex items-center justify-center font-bold leading-none">
+                                  !
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-[#5F5E5A] truncate mt-0.5">
+                              {booking.service.name_da}
+                              {booking.source === 'phone' && ' · 📞'}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-[#5F5E5A] truncate mt-0.5">
-                            {booking.service.name_da}
-                            {booking.source === 'phone' && ' · 📞'}
-                          </p>
-                        </div>
-                      </Link>
-                    )
-                  })}
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+                        </Link>
+                      )
+                    })}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
 
       {/* Summary */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white/60 rounded-lg text-[12px] text-[#5F5E5A]">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white/60 rounded-lg text-[12px] text-[#5F5E5A]">
         <span>{bookings.filter((b) => b.status !== 'cancelled').length} bookinger</span>
         <span>{bookings.filter((b) => b.source === 'phone').length} telefonbookinger</span>
       </div>

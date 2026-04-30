@@ -98,6 +98,8 @@ export function AdminLayout() {
     location.pathname === path || (path === '/admin/i-dag' && location.pathname === '/admin')
 
   const pageTitle = getPageTitle(location.pathname)
+  const isFixedFrame =
+    location.pathname === '/admin' || location.pathname === '/admin/i-dag'
 
   const navLink = (item: (typeof NAV_ITEMS)[number], onClick?: () => void) => {
     const active = isActive(item.path)
@@ -119,9 +121,9 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#F9FAFB]">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col md:flex-row bg-[#F9FAFB]">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col bg-[#1A1A1A] text-white w-[220px] min-h-screen flex-shrink-0">
+      <aside className="hidden md:flex md:flex-col bg-[#1A1A1A] text-white w-[220px] md:h-screen flex-shrink-0">
         <div className="px-4 py-5 border-b border-white/[0.08]">
           <p className="font-serif text-[17px] tracking-wide">Design Klip</p>
           <p className="text-[12px] text-white/60 mt-1">
@@ -130,7 +132,7 @@ export function AdminLayout() {
           </p>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-1 p-3">
+        <nav className="flex-1 flex flex-col gap-1 p-3 overflow-y-auto">
           {NAV_ITEMS.map((item) => navLink(item))}
         </nav>
 
@@ -179,14 +181,18 @@ export function AdminLayout() {
       )}
 
       {/* Main */}
-      <main className="flex-1 min-h-screen flex flex-col">
+      <main className="flex-1 flex flex-col md:h-screen md:overflow-hidden">
         {/* Page title bar */}
-        <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5">
+        <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5 flex-shrink-0">
           <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-4 md:p-6">
+        {/* Content area — fixed frame on /i-dag, scrollable on other pages */}
+        <div
+          className={`flex-1 p-4 md:p-6 ${
+            isFixedFrame ? 'md:overflow-hidden md:flex md:flex-col' : 'md:overflow-y-auto'
+          }`}
+        >
           <Outlet />
         </div>
       </main>
