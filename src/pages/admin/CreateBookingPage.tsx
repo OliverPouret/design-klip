@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useServices } from '../../hooks/useServices'
 import { useBarbers } from '../../hooks/useBarbers'
 import { formatDKK } from '../../types/database'
-import { formatTimeShort, isoDate, isoWeekday } from '../../lib/danishDates'
+import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { AssignedBarberRow } from '../../components/admin/booking/AssignedBarberRow'
 
 interface Slot {
@@ -60,6 +60,7 @@ export function CreateBookingPage() {
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [barberId, setBarberId] = useState<string | null>(null)
   const [barberWorkdays, setBarberWorkdays] = useState<number[] | null>(null)
+  const [barberTimeOff, setBarberTimeOff] = useState<{ starts_at: string; ends_at: string }[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   // Map<timeIso, barberIds[]> — which barbers are free at each slot time
   const [slotBarberMap, setSlotBarberMap] = useState<Map<string, string[]>>(new Map())
@@ -107,16 +108,25 @@ export function CreateBookingPage() {
     setAutoAssignedBarber(null)
     if (!id) {
       setBarberWorkdays(null)
+      setBarberTimeOff([])
       return
     }
-    const { data } = await supabase
-      .from('barber_hours')
-      .select('isoweekday, opens_at')
-      .eq('barber_id', id)
-    const workdays = ((data ?? []) as { isoweekday: number; opens_at: string | null }[])
+    // Fetch working days + upcoming time off in parallel
+    const [hoursRes, timeOffRes] = await Promise.all([
+      supabase.from('barber_hours').select('isoweekday, opens_at').eq('barber_id', id),
+      supabase
+        .from('time_off')
+        .select('starts_at, ends_at, is_all_day')
+        .eq('barber_id', id)
+        .gte('ends_at', new Date().toISOString()),
+    ])
+    const workdays = ((hoursRes.data ?? []) as { isoweekday: number; opens_at: string | null }[])
       .filter((r) => r.opens_at)
       .map((r) => r.isoweekday)
     setBarberWorkdays(workdays)
+    setBarberTimeOff(
+      (timeOffRes.data ?? []) as { starts_at: string; ends_at: string }[],
+    )
   }
 
   const handleDatePick = async (date: Date) => {
@@ -207,13 +217,13 @@ export function CreateBookingPage() {
     return assigned
   }
 
-  const handleSlotPick = (slotIso: string) => {
+  const handleSlotPick = (slotIso: string, candidates: string[]) => {
     setSelectedSlot(slotIso)
     if (barberId) {
       setAutoAssignedBarber(null)
       return
     }
-    const candidates = slotBarberMap.get(slotIso) ?? []
+    if (candidates.length === 0) return
     autoAssignBarber(candidates)
   }
 
@@ -300,12 +310,31 @@ export function CreateBookingPage() {
     calDays.push(d)
   }
 
+  // Build a Set of disabled date strings (YYYY-MM-DD) from time_off ranges.
+  // Iterate day-by-day with local Copenhagen components — never use toISOString here.
+  const disabledDates = useMemo(() => {
+    const set = new Set<string>()
+    for (const entry of barberTimeOff) {
+      const start = new Date(entry.starts_at)
+      const end = new Date(entry.ends_at)
+      // Walk from local-midnight of start through (but not including) local-midnight of end
+      const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+      const stop = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+      while (cur < stop) {
+        set.add(isoDate(cur))
+        cur.setDate(cur.getDate() + 1)
+      }
+    }
+    return set
+  }, [barberTimeOff])
+
   const isDayDisabled = (d: Date) => {
     if (d < today) return true
     if (d.getMonth() !== calMonth) return true
     const wd = isoWeekday(d)
     if (wd === 7) return true // Sunday
     if (barberWorkdays && !barberWorkdays.includes(wd)) return true
+    if (disabledDates.has(isoDate(d))) return true
     return false
   }
 
@@ -342,6 +371,19 @@ export function CreateBookingPage() {
       }) ?? null
     )
   }
+
+  // Map "HH:mm" local time → raw RPC slot_starts_at string (the same string used
+  // in slotBarberMap keys and in selectedSlot, so we never mix string formats).
+  const slotsByLocalTime = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const iso of slotBarberMap.keys()) {
+      const d = new Date(iso)
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mm = String(d.getMinutes()).padStart(2, '0')
+      m.set(`${hh}:${mm}`, iso)
+    }
+    return m
+  }, [slotBarberMap])
 
   const cleanedPhoneLength = customerPhone.replace(/\s/g, '').length
   const canSubmit =
@@ -465,11 +507,10 @@ export function CreateBookingPage() {
               </div>
             )}
 
-            {/* Date — full month calendar */}
-            {serviceId && (
-              <div>
-                <SectionLabel>Dato</SectionLabel>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+            {/* Date — full month calendar (always visible) */}
+            <div>
+              <SectionLabel>Dato</SectionLabel>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
                   {/* Month header */}
                   <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
                     <button
@@ -534,7 +575,6 @@ export function CreateBookingPage() {
                   </div>
                 </div>
               </div>
-            )}
 
             {/* Assigned barber row (any-barber mode only) */}
             {!barberId && selectedSlot && autoAssignedBarber && (
@@ -589,12 +629,18 @@ export function CreateBookingPage() {
                 <div className="flex items-center justify-center h-full p-8">
                   <p className="text-sm text-gray-400">Ingen dato valgt</p>
                 </div>
+              ) : !serviceId ? (
+                <div className="flex items-center justify-center h-full p-8">
+                  <p className="text-sm text-gray-400">Vælg en ydelse for at se ledige tider</p>
+                </div>
               ) : (
                 <div className="divide-y divide-gray-100">
                   {TIME_SLOTS.map((time) => {
                     const booked = isSlotBooked(time)
+                    // Compare against the same raw iso we render with — never
+                    // re-stringify selectedSlot because format may differ.
                     const isSelected =
-                      selectedSlot && formatTimeShort(new Date(selectedSlot)) === time
+                      selectedSlot && selectedSlot === slotsByLocalTime.get(time)
 
                     if (booked) {
                       return (
@@ -615,23 +661,23 @@ export function CreateBookingPage() {
                       )
                     }
 
+                    const slotIso = slotsByLocalTime.get(time)
+                    const isAvailable = !!slotIso
                     return (
                       <button
                         key={time}
+                        disabled={!isAvailable}
                         onClick={() => {
-                          if (!selectedDate) return
-                          const [h, m] = time.split(':').map(Number)
-                          const slotDate = new Date(
-                            selectedDate.getFullYear(),
-                            selectedDate.getMonth(),
-                            selectedDate.getDate(),
-                            h,
-                            m,
-                          )
-                          handleSlotPick(slotDate.toISOString())
+                          if (!slotIso) return
+                          const candidates = slotBarberMap.get(slotIso) ?? []
+                          handleSlotPick(slotIso, candidates)
                         }}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                          isSelected ? 'bg-[#1A1A1A] text-white' : 'hover:bg-gray-50'
+                          isSelected
+                            ? 'bg-[#1A1A1A] text-white'
+                            : isAvailable
+                              ? 'hover:bg-gray-50'
+                              : 'opacity-50 cursor-not-allowed'
                         }`}
                       >
                         <span
