@@ -5,6 +5,8 @@ import { useBarbers } from '../../hooks/useBarbers'
 import { FilterBar } from '../../components/admin/oekonomi/FilterBar'
 import { KPITileRow } from '../../components/admin/oekonomi/KPITileRow'
 import type { BookingForKPI } from '../../components/admin/oekonomi/KPITileRow'
+import { ForecastSection } from '../../components/admin/oekonomi/ForecastSection'
+import { RevenueChart } from '../../components/admin/oekonomi/RevenueChart'
 import { getIsoWeekday } from '../../utils/revenueUtils'
 
 interface BarberHourRow {
@@ -176,6 +178,20 @@ export function OekonomiPage() {
           workingMinutes={workingMinutes}
           comparisonWorkingMinutes={comparisonWorkingMinutes}
           onTileClick={handleTileClick}
+        />
+      )}
+
+      <ForecastSection activeBarberIds={activeBarberIds} />
+
+      {!loading && (
+        <RevenueChart
+          current={currentBookings}
+          comparison={comparisonBookings}
+          comparisonMode={state.comparison}
+          start={state.start}
+          end={state.end}
+          hours={barberHours}
+          activeBarberIds={activeBarberIds}
         />
       )}
     </div>
