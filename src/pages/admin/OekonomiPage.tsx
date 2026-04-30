@@ -7,6 +7,9 @@ import { KPITileRow } from '../../components/admin/oekonomi/KPITileRow'
 import type { BookingForKPI } from '../../components/admin/oekonomi/KPITileRow'
 import { ForecastSection } from '../../components/admin/oekonomi/ForecastSection'
 import { RevenueChart } from '../../components/admin/oekonomi/RevenueChart'
+import { BarberLeaderboard } from '../../components/admin/oekonomi/BarberLeaderboard'
+import { ServiceBreakdown } from '../../components/admin/oekonomi/ServiceBreakdown'
+import { PaymentMethodSplit } from '../../components/admin/oekonomi/PaymentMethodSplit'
 import { getIsoWeekday } from '../../utils/revenueUtils'
 
 interface BarberHourRow {
@@ -184,15 +187,30 @@ export function OekonomiPage() {
       <ForecastSection activeBarberIds={activeBarberIds} />
 
       {!loading && (
-        <RevenueChart
-          current={currentBookings}
-          comparison={comparisonBookings}
-          comparisonMode={state.comparison}
-          start={state.start}
-          end={state.end}
-          hours={barberHours}
-          activeBarberIds={activeBarberIds}
-        />
+        <>
+          <RevenueChart
+            current={currentBookings}
+            comparison={comparisonBookings}
+            comparisonMode={state.comparison}
+            start={state.start}
+            end={state.end}
+            hours={barberHours}
+            activeBarberIds={activeBarberIds}
+          />
+
+          <BarberLeaderboard
+            barbers={barbers}
+            bookings={currentBookings}
+            hours={barberHours}
+            timeOff={timeOff}
+            start={state.start}
+            end={state.end}
+          />
+
+          <ServiceBreakdown bookings={currentBookings} />
+
+          <PaymentMethodSplit bookings={currentBookings} />
+        </>
       )}
     </div>
   )

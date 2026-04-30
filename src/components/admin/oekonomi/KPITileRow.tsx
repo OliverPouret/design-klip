@@ -5,9 +5,12 @@ export interface BookingForKPI {
   id: string
   price_ore: number
   status: string
+  source: string
   starts_at: string
   ends_at: string | null
   barber_id: string | null
+  service_id: string | null
+  customer_id: string | null
   services?: { name_da: string; duration_minutes: number } | null
 }
 
