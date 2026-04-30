@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { Card } from '../../components/admin/Card'
 import { RescheduleModal } from '../../components/admin/booking/RescheduleModal'
+import { DayScheduleGrid } from '../../components/admin/schedule/DayScheduleGrid'
+import { useBarbers } from '../../hooks/useBarbers'
 
 const MONTH_FULL = [
   'januar', 'februar', 'marts', 'april', 'maj', 'juni',
@@ -33,6 +35,10 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true)
   const [dayViewDate, setDayViewDate] = useState<Date | null>(null)
   const [dayBookings, setDayBookings] = useState<DayBooking[]>([])
+  const [dayBarberHours, setDayBarberHours] = useState<
+    Record<string, { opens: string; closes: string } | null>
+  >({})
+  const [dayNotedCustomerIds, setDayNotedCustomerIds] = useState<Set<string>>(new Set())
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
@@ -40,6 +46,7 @@ export function CalendarPage() {
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
   const dayPanelRef = useRef<HTMLDivElement>(null)
+  const { barbers: activeBarbers } = useBarbers()
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -124,7 +131,46 @@ export function CalendarPage() {
       .in('status', ['confirmed', 'pending', 'completed', 'no_show'])
       .order('starts_at')
 
-    setDayBookings((data ?? []) as unknown as DayBooking[])
+    const bookingList = (data ?? []) as unknown as DayBooking[]
+    setDayBookings(bookingList)
+
+    // Fetch barber working hours for this weekday + accounting for time_off
+    const wd = isoWeekday(date)
+    const [hoursRes, timeOffRes] = await Promise.all([
+      supabase.from('barber_hours').select('barber_id, opens_at, closes_at').eq('isoweekday', wd),
+      supabase
+        .from('time_off')
+        .select('barber_id, starts_at, ends_at')
+        .lte('starts_at', end.toISOString())
+        .gte('ends_at', start.toISOString()),
+    ])
+    const hoursMap: Record<string, { opens: string; closes: string } | null> = {}
+    ;(
+      (hoursRes.data ?? []) as { barber_id: string; opens_at: string | null; closes_at: string | null }[]
+    ).forEach((r) => {
+      if (r.opens_at && r.closes_at) {
+        hoursMap[r.barber_id] = { opens: r.opens_at.slice(0, 5), closes: r.closes_at.slice(0, 5) }
+      }
+    })
+    // Mark off any barber who has time_off overlapping this day
+    ;(
+      (timeOffRes.data ?? []) as { barber_id: string }[]
+    ).forEach((row) => {
+      hoursMap[row.barber_id] = null
+    })
+    setDayBarberHours(hoursMap)
+
+    // Customer note flags for this day's customers
+    const customerIds = [...new Set(bookingList.map((b) => b.customer.id))]
+    const noted = new Set<string>()
+    if (customerIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('customer_notes')
+        .select('customer_id')
+        .in('customer_id', customerIds)
+      ;(notes as { customer_id: string }[] | null)?.forEach((n) => noted.add(n.customer_id))
+    }
+    setDayNotedCustomerIds(noted)
     setDayLoading(false)
 
     setTimeout(() => {
@@ -262,67 +308,59 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {/* Day panel — appears when a day is clicked */}
+      {/* Day panel — full schedule grid for the chosen day */}
       {dayViewDate && (
         <div ref={dayPanelRef} className="flex-shrink-0">
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-              <h2 className="text-sm font-medium text-gray-900 capitalize">
-                {dayViewDate.toLocaleDateString('da-DK', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })}
-              </h2>
-              <button
-                onClick={() => setDayViewDate(null)}
-                className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
-              >
-                ✕ Luk
-              </button>
-            </div>
-
-            {dayLoading ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-gray-400">Henter bookinger…</p>
-              </div>
-            ) : dayBookings.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-gray-400">Ingen bookinger denne dag.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {dayBookings.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between px-5 py-3 gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{b.customer.full_name}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {b.service.name_da} · {b.barber.display_name}
-                        {b.source === 'phone' && ' · 📞'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-right">
-                        <p className="text-sm text-gray-700">
-                          {new Date(b.starts_at).toLocaleTimeString('da-DK', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                        <p className="text-xs text-gray-400">{b.duration_minutes} min</p>
-                      </div>
-                      <button
-                        onClick={() => setManageBooking(b)}
-                        className="px-2.5 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-colors whitespace-nowrap"
-                      >
-                        Administrér
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center justify-between px-1 mb-2">
+            <h2 className="text-sm font-medium text-gray-900 capitalize">
+              {dayViewDate.toLocaleDateString('da-DK', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </h2>
+            <button
+              onClick={() => setDayViewDate(null)}
+              className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              ✕ Luk
+            </button>
           </div>
+
+          {dayLoading ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+              <p className="text-sm text-gray-400">Henter bookinger…</p>
+            </div>
+          ) : (
+            <div className="min-h-[500px]">
+              <DayScheduleGrid
+                date={dayViewDate}
+                barbers={activeBarbers.map((b) => ({
+                  id: b.id,
+                  display_name: b.display_name,
+                  profile_color: b.profile_color,
+                }))}
+                bookings={dayBookings.map((b) => ({
+                  id: b.id,
+                  starts_at: b.starts_at,
+                  ends_at: b.ends_at,
+                  duration_minutes: b.duration_minutes,
+                  status: b.status,
+                  source: b.source,
+                  barber_id: b.barber_id,
+                  customer: { id: b.customer.id, full_name: b.customer.full_name },
+                  service: { name_da: b.service.name_da },
+                }))}
+                barberHours={dayBarberHours}
+                notedCustomerIds={dayNotedCustomerIds}
+                onBookingClick={(scheduleBooking) => {
+                  // Look up the full DayBooking to populate the Administrér modal
+                  const full = dayBookings.find((b) => b.id === scheduleBooking.id)
+                  if (full) setManageBooking(full)
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 

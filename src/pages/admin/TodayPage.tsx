@@ -1,112 +1,99 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useBarbers } from '../../hooks/useBarbers'
-import { isoDate } from '../../lib/danishDates'
+import { isoWeekday } from '../../lib/danishDates'
+import { formatDKK } from '../../types/database'
 import { Card } from '../../components/admin/Card'
 
-interface BookingBlock {
+interface TodayBooking {
   id: string
-  short_code: string
   starts_at: string
   ends_at: string
-  duration_minutes: number
   status: string
   source: string
   barber_id: string
-  customer: { id: string; full_name: string }
-  service: { name_da: string }
+  customer: { full_name: string }
+  service: { name_da: string; price_ore: number; duration_minutes: number }
+  barber: { display_name: string }
 }
 
-const MIN_SLOT_HEIGHT = 30 // px — floor so blocks stay readable
-const DEFAULT_SLOT_HEIGHT = 60 // px — initial value before measurement
-const WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+const WEEKDAYS_DA = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+const MONTHS_DA = [
+  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
+  'juli', 'august', 'september', 'oktober', 'november', 'december',
+]
+
+const STATUS_LABEL: Record<string, string> = {
+  confirmed: 'Bekræftet',
+  pending: 'Afventer',
+  completed: 'Fuldført',
+  no_show: 'Udeblevet',
+  cancelled: 'Afbestilt',
+}
 
 export function TodayPage() {
   const { barbers } = useBarbers()
-  const [viewDate, setViewDate] = useState(() => {
-    // Pick up date from CalendarPage if user navigated from there
-    const stored = sessionStorage.getItem('admin_view_date')
-    if (stored) {
-      sessionStorage.removeItem('admin_view_date')
-      const [y, m, d] = stored.split('-').map((n) => parseInt(n, 10))
-      if (y && m && d) return new Date(y, m - 1, d)
-    }
-    return new Date()
-  })
-  const [bookings, setBookings] = useState<BookingBlock[]>([])
-  const [barberHours, setBarberHours] = useState<Record<string, { opens: string; closes: string } | null>>({})
-  const [noteFlags, setNoteFlags] = useState<Record<string, boolean>>({})
+  const [bookings, setBookings] = useState<TodayBooking[]>([])
+  const [barberHours, setBarberHours] = useState<
+    Record<string, { opens: string; closes: string } | null>
+  >({})
   const [loading, setLoading] = useState(true)
-  const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT)
   const [refreshKey, setRefreshKey] = useState(0)
-  const timelineBodyRef = useRef<HTMLDivElement>(null)
+
+  const today = new Date()
+  const dayHeading = `I dag — ${WEEKDAYS_DA[today.getDay()]} d. ${today.getDate()}. ${MONTHS_DA[today.getMonth()]}`
 
   useEffect(() => {
     if (barbers.length === 0) return
 
-    const dayStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate())
+    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const dayEnd = new Date(dayStart)
     dayEnd.setDate(dayEnd.getDate() + 1)
-    const isoWd = viewDate.getDay() === 0 ? 7 : viewDate.getDay()
+    const wd = isoWeekday(today)
 
     const fetchData = async () => {
-      // Bookings for the day
-      const { data: bk } = await supabase
-        .from('bookings')
-        .select(`
-          id, short_code, starts_at, ends_at, duration_minutes, status, source, barber_id,
-          customer:customers!inner(id, full_name),
-          service:services!inner(name_da)
-        `)
-        .gte('starts_at', dayStart.toISOString())
-        .lt('starts_at', dayEnd.toISOString())
-        .in('status', ['confirmed', 'pending', 'completed', 'no_show'])
-        .order('starts_at')
+      const [bookingsRes, hoursRes, timeOffRes] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select(`
+            id, starts_at, ends_at, status, source, barber_id,
+            customer:customers!inner(full_name),
+            service:services!inner(name_da, price_ore, duration_minutes),
+            barber:barbers!inner(display_name)
+          `)
+          .gte('starts_at', dayStart.toISOString())
+          .lt('starts_at', dayEnd.toISOString())
+          .order('starts_at'),
+        supabase.from('barber_hours').select('barber_id, opens_at, closes_at').eq('isoweekday', wd),
+        supabase
+          .from('time_off')
+          .select('barber_id')
+          .lte('starts_at', dayEnd.toISOString())
+          .gte('ends_at', dayStart.toISOString()),
+      ])
 
-      const bookingList = (bk ?? []) as unknown as BookingBlock[]
+      setBookings((bookingsRes.data ?? []) as unknown as TodayBooking[])
 
-      // Customer note flags
-      const customerIds = [...new Set(bookingList.map((b) => b.customer.id))]
-      const flags: Record<string, boolean> = {}
-      if (customerIds.length > 0) {
-        const { data: notes } = await supabase
-          .from('customer_notes')
-          .select('customer_id')
-          .in('customer_id', customerIds)
-        ;(notes as { customer_id: string }[] | null)?.forEach((n) => {
-          flags[n.customer_id] = true
-        })
-      }
-
-      // Barber hours for this weekday
-      const { data: hours } = await supabase
-        .from('barber_hours')
-        .select('barber_id, opens_at, closes_at')
-        .eq('isoweekday', isoWd)
-
-      const hoursMap: Record<string, { opens: string; closes: string } | null> = {}
-      barbers.forEach((b) => {
-        hoursMap[b.id] = null
+      const hMap: Record<string, { opens: string; closes: string } | null> = {}
+      ;(
+        (hoursRes.data ?? []) as { barber_id: string; opens_at: string | null; closes_at: string | null }[]
+      ).forEach((r) => {
+        if (r.opens_at && r.closes_at) {
+          hMap[r.barber_id] = { opens: r.opens_at.slice(0, 5), closes: r.closes_at.slice(0, 5) }
+        }
       })
-      ;(hours as { barber_id: string; opens_at: string | null; closes_at: string | null }[] | null)?.forEach(
-        (h) => {
-          if (h.opens_at && h.closes_at) {
-            hoursMap[h.barber_id] = { opens: h.opens_at, closes: h.closes_at }
-          }
-        },
-      )
-
-      setBookings(bookingList)
-      setNoteFlags(flags)
-      setBarberHours(hoursMap)
+      ;((timeOffRes.data ?? []) as { barber_id: string }[]).forEach((r) => {
+        hMap[r.barber_id] = null
+      })
+      setBarberHours(hMap)
       setLoading(false)
     }
-
     fetchData()
-  }, [viewDate, barbers, refreshKey])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barbers, refreshKey])
 
-  // Real-time subscription: any booking change triggers a re-fetch.
+  // Real-time: any booking change triggers a re-fetch.
   // Requires Realtime enabled on bookings table in Supabase dashboard.
   useEffect(() => {
     const channel = supabase
@@ -122,213 +109,161 @@ export function TodayPage() {
     }
   }, [])
 
-  // Calculate the time range for the grid
-  const allOpens = Object.values(barberHours).filter((h): h is { opens: string; closes: string } => Boolean(h)).map((h) => h.opens)
-  const allCloses = Object.values(barberHours).filter((h): h is { opens: string; closes: string } => Boolean(h)).map((h) => h.closes)
-  const gridStart = allOpens.length > 0 ? allOpens.sort()[0] : '09:00'
-  const gridEnd = allCloses.length > 0 ? allCloses.sort().reverse()[0] : '17:00'
+  if (loading) return <p className="text-sm text-gray-400">Henter dagens overblik…</p>
 
-  const startMinutes = parseInt(gridStart.split(':')[0]) * 60 + parseInt(gridStart.split(':')[1])
-  const endMinutes = parseInt(gridEnd.split(':')[0]) * 60 + parseInt(gridEnd.split(':')[1])
-  const totalSlots = Math.ceil((endMinutes - startMinutes) / 30)
-  const totalHeight = totalSlots * slotHeight
+  // Stats — only confirmed/pending count toward the day
+  const active = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
+  const totalBookings = active.length
+  const totalRevenueOre = active.reduce((sum, b) => sum + (b.service?.price_ore ?? 0), 0)
+  const onlineCount = active.filter((b) => b.source === 'web').length
+  const phoneCount = active.filter((b) => b.source === 'phone').length
+  const noShowCount = bookings.filter((b) => b.status === 'no_show').length
 
-  // Measure the timeline body height and divide across slots so the day fits
-  // the available frame on desktop. Floor at MIN_SLOT_HEIGHT so blocks stay readable.
-  // `loading` is in the deps so the effect re-runs once the schedule mounts
-  // (during loading the ref is null because we render a placeholder).
-  useEffect(() => {
-    if (loading || totalSlots === 0) return
-    const el = timelineBodyRef.current
-    if (!el) return
-
-    const measure = () => {
-      const available = el.clientHeight
-      if (available > 0) {
-        setSlotHeight(Math.max(MIN_SLOT_HEIGHT, available / totalSlots))
-      }
+  // Per-barber stats
+  const barberStats = barbers.map((b) => {
+    const theirBookings = active.filter((bk) => bk.barber_id === b.id).sort((a, c) => a.starts_at.localeCompare(c.starts_at))
+    const hours = barberHours[b.id]
+    let totalSlots = 0
+    if (hours) {
+      const [oH, oM] = hours.opens.split(':').map(Number)
+      const [cH, cM] = hours.closes.split(':').map(Number)
+      totalSlots = Math.max(0, ((cH * 60 + cM) - (oH * 60 + oM)) / 30)
     }
+    const bookedSlots = theirBookings.reduce(
+      (sum, bk) => sum + (bk.service?.duration_minutes ?? 0) / 30,
+      0,
+    )
+    const filledRatio = totalSlots > 0 ? Math.min(1, bookedSlots / totalSlots) : 0
+    const firstTime = theirBookings[0]
+      ? new Date(theirBookings[0].starts_at).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+      : null
+    const lastTime = theirBookings[theirBookings.length - 1]
+      ? new Date(theirBookings[theirBookings.length - 1].starts_at).toLocaleTimeString('da-DK', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null
+    return {
+      id: b.id,
+      name: b.display_name,
+      isOff: !hours,
+      count: theirBookings.length,
+      filledRatio,
+      firstTime,
+      lastTime,
+    }
+  })
 
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [loading, totalSlots])
-
-  const timeLabels: string[] = []
-  for (let m = startMinutes; m < endMinutes; m += 30) {
-    const h = Math.floor(m / 60).toString().padStart(2, '0')
-    const min = (m % 60).toString().padStart(2, '0')
-    timeLabels.push(`${h}:${min}`)
-  }
-
-  const getBlockStyle = (booking: BookingBlock) => {
-    const bStart = new Date(booking.starts_at)
-    const bookingMinutes = bStart.getHours() * 60 + bStart.getMinutes()
-    const offset = bookingMinutes - startMinutes
-    const top = (offset / 30) * slotHeight
-    const height = (booking.duration_minutes / 30) * slotHeight
-    return { top: `${top}px`, height: `${height}px` }
-  }
-
-  const prevDay = () => {
-    const d = new Date(viewDate)
-    d.setDate(d.getDate() - 1)
-    setViewDate(d)
-  }
-  const nextDay = () => {
-    const d = new Date(viewDate)
-    d.setDate(d.getDate() + 1)
-    setViewDate(d)
-  }
-  const goToday = () => setViewDate(new Date())
-
-  const isToday = isoDate(viewDate) === isoDate(new Date())
-
-  if (loading) return <p className="text-sm text-[#8A8A8A]">Henter program…</p>
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="md:h-full flex flex-col gap-3 md:gap-4 md:min-h-0">
-      {/* Day navigation */}
-      <div className="flex-shrink-0">
+    <div className="md:h-full md:overflow-y-auto md:pr-1 space-y-6">
+      <div>
+        <h1 className="font-serif text-[24px] text-gray-900 capitalize">{dayHeading}</h1>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card padding="sm">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={prevDay}
-              className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
-            >
-              ← Forrige
-            </button>
-            <div className="text-center">
-              <h1 className="font-serif text-[18px] text-ink">
-                {WEEKDAYS[viewDate.getDay()]} d. {viewDate.getDate()}.{' '}
-                {viewDate.toLocaleDateString('da-DK', { month: 'long' })}
-              </h1>
-              {!isToday && (
-                <button onClick={goToday} className="text-[11px] text-[#B08A3E] hover:text-[#8C6A28] mt-0.5">
-                  I dag
-                </button>
-              )}
-            </div>
-            <button
-              onClick={nextDay}
-              className="px-3 py-1.5 rounded-lg text-sm text-[#5F5E5A] hover:bg-[#F6F6F3] hover:text-ink transition-colors"
-            >
-              Næste →
-            </button>
-          </div>
+          <p className="font-serif text-[26px] text-gray-900 leading-none">{totalBookings}</p>
+          <p className="text-xs text-gray-500 mt-1">bookinger i dag</p>
+        </Card>
+        <Card padding="sm">
+          <p className="font-serif text-[26px] text-gray-900 leading-none">{formatDKK(totalRevenueOre)}</p>
+          <p className="text-xs text-gray-500 mt-1">forventet omsætning</p>
+        </Card>
+        <Card padding="sm">
+          <p className="font-serif text-[26px] text-gray-900 leading-none">{onlineCount}</p>
+          <p className="text-xs text-gray-500 mt-1">online bookinger</p>
+        </Card>
+        <Card padding="sm">
+          <p className="font-serif text-[26px] text-gray-900 leading-none">{phoneCount}</p>
+          <p className="text-xs text-gray-500 mt-1">telefonbookinger</p>
+        </Card>
+        <Card padding="sm">
+          <p className="font-serif text-[26px] text-gray-900 leading-none">{noShowCount}</p>
+          <p className="text-xs text-gray-500 mt-1">udeblivelser</p>
         </Card>
       </div>
 
-      {/* Schedule grid — fills remaining vertical space on desktop */}
-      <div className="md:flex-1 md:min-h-0">
-        <Card padding="none" className="md:h-full md:flex md:flex-col md:overflow-hidden">
-          {/* Barber headers */}
-          <div
-            className="grid border-b border-gray-200 rounded-t-lg overflow-hidden flex-shrink-0"
-            style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
-          >
-            <div className="p-2.5 bg-[#FAFAF8]" />
-            {barbers.map((barber) => {
-              const hours = barberHours[barber.id]
-              const isOff = !hours
-              return (
-                <div
-                  key={barber.id}
-                  className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]' : 'bg-[#FAFAF8]'}`}
-                >
-                  <p className="text-[13px] font-medium text-ink">{barber.display_name}</p>
-                  {isOff && <p className="text-[11px] text-[#8A8A8A] mt-0.5">Fri i dag</p>}
-                </div>
-              )
-            })}
-          </div>
+      {/* Per-barber */}
+      <div>
+        <h2 className="text-sm font-medium text-gray-900 mb-3">Frisører</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {barberStats.map((b) => (
+            <Card key={b.id} padding="sm" className={b.isOff ? 'opacity-60' : ''}>
+              <p className="text-sm font-medium text-gray-900">{b.name}</p>
+              {b.isOff ? (
+                <p className="text-xs text-gray-500 italic mt-1">Fridag</p>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {b.count} {b.count === 1 ? 'klip' : 'klip'} i dag
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {b.firstTime && b.lastTime
+                      ? `${b.firstTime} — ${b.lastTime}`
+                      : 'Ingen bookinger'}
+                  </p>
+                  <div className="mt-2 h-1.5 bg-gray-100 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-[#B08A3E]"
+                      style={{ width: `${Math.round(b.filledRatio * 100)}%` }}
+                    />
+                  </div>
+                </>
+              )}
+            </Card>
+          ))}
+        </div>
+      </div>
 
-          {/* Timeline body — flex-1 on desktop for dynamic slot sizing */}
-          <div
-            ref={timelineBodyRef}
-            className="grid md:flex-1 rounded-b-lg overflow-x-auto overflow-y-hidden"
-            style={{ gridTemplateColumns: `50px repeat(${barbers.length}, 1fr)` }}
-          >
-            {/* Time labels column */}
-            <div className="relative" style={{ height: `${totalHeight}px` }}>
-              {timeLabels.map((label, i) => (
+      {/* Booking list */}
+      <div>
+        <h2 className="text-sm font-medium text-gray-900 mb-3">Dagens bookinger</h2>
+        {active.length === 0 ? (
+          <Card padding="sm">
+            <p className="text-sm text-gray-500 italic">Ingen bookinger i dag.</p>
+          </Card>
+        ) : (
+          <Card padding="none">
+            <div className="divide-y divide-gray-100">
+              {active.map((b) => (
                 <div
-                  key={label}
-                  className="absolute right-0 pr-2 text-right"
-                  style={{ top: `${i * slotHeight}px`, height: `${slotHeight}px`, lineHeight: `${slotHeight}px` }}
+                  key={b.id}
+                  className="flex items-center gap-3 px-4 py-3"
                 >
-                  <span className="text-[11px] text-[#8A8A8A]">{label}</span>
+                  <span className="text-sm font-medium text-gray-900 w-12 flex-shrink-0">
+                    {fmtTime(b.starts_at)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 truncate">{b.customer.full_name}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {b.service.name_da} · {b.barber.display_name}
+                    </p>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-medium">
+                    {b.source === 'phone' ? '📞 Telefon' : '🌐 Online'}
+                  </span>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                    {STATUS_LABEL[b.status] ?? b.status}
+                  </span>
                 </div>
               ))}
             </div>
-
-            {/* Barber columns */}
-            {barbers.map((barber) => {
-              const hours = barberHours[barber.id]
-              const isOff = !hours
-              const barberBookings = bookings.filter((b) => b.barber_id === barber.id)
-
-              return (
-                <div
-                  key={barber.id}
-                  className={`relative border-l border-gray-200 ${isOff ? 'bg-[#F0F0ED]/40' : ''}`}
-                  style={{ height: `${totalHeight}px` }}
-                >
-                  {/* Grid lines — barely visible */}
-                  {timeLabels.map((_, i) => (
-                    <div
-                      key={`grid-${barber.id}-${i}`}
-                      className="absolute left-0 right-0"
-                      style={{ top: `${i * slotHeight}px`, borderBottom: '1px solid rgba(0,0,0,0.04)' }}
-                    />
-                  ))}
-
-                  {/* Booking blocks */}
-                  {!isOff &&
-                    barberBookings.map((booking) => {
-                      const style = getBlockStyle(booking)
-                      const hasNote = noteFlags[booking.customer.id]
-                      return (
-                        <Link
-                          key={booking.id}
-                          to={`/admin/booking/${booking.id}`}
-                          className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/30 transition-all"
-                          style={{ top: style.top, height: style.height, minHeight: '28px' }}
-                        >
-                          <div
-                            className="h-full border-l-[3px] px-2.5 py-1 bg-[#FAFAF8]"
-                            style={{ borderColor: barber.profile_color || '#B08A3E' }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[12px] font-medium text-ink truncate">
-                                {booking.customer.full_name}
-                              </span>
-                              {hasNote && (
-                                <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#9B2C2C] text-white text-[8px] flex items-center justify-center font-bold leading-none">
-                                  !
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-[#5F5E5A] truncate mt-0.5">
-                              {booking.service.name_da}
-                              {booking.source === 'phone' && ' · 📞'}
-                            </p>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                </div>
-              )
-            })}
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
 
-      {/* Summary */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white/60 rounded-lg text-[12px] text-[#5F5E5A]">
-        <span>{bookings.filter((b) => b.status !== 'cancelled').length} bookinger</span>
-        <span>{bookings.filter((b) => b.source === 'phone').length} telefonbookinger</span>
+      {/* Quick action */}
+      <div>
+        <Link
+          to="/admin/opret-booking"
+          className="inline-block px-5 py-2.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          Opret telefonbooking →
+        </Link>
       </div>
     </div>
   )
