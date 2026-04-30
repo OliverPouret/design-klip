@@ -120,8 +120,10 @@ export function TodayPage() {
 
   // Measure the timeline body height and divide across slots so the day fits
   // the available frame on desktop. Floor at MIN_SLOT_HEIGHT so blocks stay readable.
+  // `loading` is in the deps so the effect re-runs once the schedule mounts
+  // (during loading the ref is null because we render a placeholder).
   useEffect(() => {
-    if (totalSlots === 0) return
+    if (loading || totalSlots === 0) return
     const el = timelineBodyRef.current
     if (!el) return
 
@@ -136,7 +138,7 @@ export function TodayPage() {
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [totalSlots])
+  }, [loading, totalSlots])
 
   const timeLabels: string[] = []
   for (let m = startMinutes; m < endMinutes; m += 30) {
