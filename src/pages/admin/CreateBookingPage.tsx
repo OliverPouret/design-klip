@@ -5,6 +5,7 @@ import { useServices } from '../../hooks/useServices'
 import { useBarbers } from '../../hooks/useBarbers'
 import { formatDKK } from '../../types/database'
 import { formatTimeShort, isoDate, isoWeekday } from '../../lib/danishDates'
+import { AssignedBarberRow } from '../../components/admin/booking/AssignedBarberRow'
 
 interface Slot {
   slot_starts_at: string
@@ -60,9 +61,11 @@ export function CreateBookingPage() {
   const [barberId, setBarberId] = useState<string | null>(null)
   const [barberWorkdays, setBarberWorkdays] = useState<number[] | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [slots, setSlots] = useState<Slot[]>([])
+  // Map<timeIso, barberIds[]> — which barbers are free at each slot time
+  const [slotBarberMap, setSlotBarberMap] = useState<Map<string, string[]>>(new Map())
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([])
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [autoAssignedBarber, setAutoAssignedBarber] = useState<{ id: string; name: string } | null>(null)
 
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -100,7 +103,8 @@ export function CreateBookingPage() {
   const handleBarberSelect = async (id: string | null) => {
     setBarberId(id)
     setSelectedSlot(null)
-    setSlots([])
+    setSlotBarberMap(new Map())
+    setAutoAssignedBarber(null)
     if (!id) {
       setBarberWorkdays(null)
       return
@@ -118,13 +122,99 @@ export function CreateBookingPage() {
   const handleDatePick = async (date: Date) => {
     setSelectedDate(date)
     setSelectedSlot(null)
+    setAutoAssignedBarber(null)
     if (!serviceId) return
-    const { data } = await supabase.rpc('get_available_slots', {
-      p_barber_id: barberId || null,
-      p_service_id: serviceId,
-      p_date: isoDate(date),
+
+    if (barberId) {
+      // Specific barber: single RPC call
+      const { data } = await supabase.rpc('get_available_slots', {
+        p_barber_id: barberId,
+        p_service_id: serviceId,
+        p_date: isoDate(date),
+      })
+      const slotsData = (data as Slot[] | null) ?? []
+      setSlotBarberMap(new Map(slotsData.map((s) => [s.slot_starts_at, [barberId]])))
+      return
+    }
+
+    // "Any barber" mode: query each active barber separately and merge
+    const activeBarbers = barbers.filter((b) => b.is_active)
+    const results = await Promise.all(
+      activeBarbers.map(async (b) => {
+        const { data } = await supabase.rpc('get_available_slots', {
+          p_barber_id: b.id,
+          p_service_id: serviceId,
+          p_date: isoDate(date),
+        })
+        return { barberId: b.id, slots: (data as Slot[] | null) ?? [] }
+      }),
+    )
+
+    const map = new Map<string, string[]>()
+    results.forEach(({ barberId: bid, slots: bSlots }) => {
+      bSlots.forEach((s) => {
+        const arr = map.get(s.slot_starts_at) ?? []
+        if (!arr.includes(bid)) arr.push(bid)
+        map.set(s.slot_starts_at, arr)
+      })
     })
-    setSlots((data as Slot[] | null) ?? [])
+
+    setSlotBarberMap(map)
+  }
+
+  // Auto-assign the barber with the fewest bookings on the chosen day.
+  // Tiebreak: lowest display_order.
+  const autoAssignBarber = async (candidateIds: string[]) => {
+    if (!selectedDate || candidateIds.length === 0) return null
+
+    const dayStart = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+    )
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+
+    const { data: rows } = await supabase
+      .from('bookings')
+      .select('barber_id')
+      .in('barber_id', candidateIds)
+      .gte('starts_at', dayStart.toISOString())
+      .lt('starts_at', dayEnd.toISOString())
+      .in('status', ['confirmed', 'pending'])
+
+    const counts: Record<string, number> = {}
+    candidateIds.forEach((id) => {
+      counts[id] = 0
+    })
+    ;(rows as { barber_id: string }[] | null)?.forEach((b) => {
+      counts[b.barber_id] = (counts[b.barber_id] ?? 0) + 1
+    })
+
+    const sorted = barbers
+      .filter((b) => candidateIds.includes(b.id))
+      .sort((a, b) => {
+        const ca = counts[a.id] ?? 0
+        const cb = counts[b.id] ?? 0
+        if (ca !== cb) return ca - cb
+        return a.display_order - b.display_order
+      })
+
+    const picked = sorted[0]
+    if (!picked) return null
+    const assigned = { id: picked.id, name: picked.display_name }
+    setAutoAssignedBarber(assigned)
+    return assigned
+  }
+
+  const handleSlotPick = (slotIso: string) => {
+    setSelectedSlot(slotIso)
+    if (barberId) {
+      setAutoAssignedBarber(null)
+      return
+    }
+    const candidates = slotBarberMap.get(slotIso) ?? []
+    autoAssignBarber(candidates)
   }
 
   const handlePhoneLookup = async (phone: string) => {
@@ -154,12 +244,11 @@ export function CreateBookingPage() {
     setSubmitting(true)
     setError(null)
 
-    const resolvedBarberId =
-      barberId || slots.find((s) => s.slot_starts_at === selectedSlot)?.available_barber_ids[0]
+    const resolvedBarberId = barberId || autoAssignedBarber?.id
 
     if (!resolvedBarberId) {
       setSubmitting(false)
-      setError('Ingen frisør er ledig på det valgte tidspunkt.')
+      setError('Ingen frisør tildelt — prøv igen.')
       return
     }
 
@@ -337,7 +426,7 @@ export function CreateBookingPage() {
                     onClick={() => {
                       setServiceId(s.id)
                       setSelectedSlot(null)
-                      setSlots([])
+                      setSlotBarberMap(new Map())
                     }}
                     className={`${SELECT_BTN} ${serviceId === s.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
                   >
@@ -447,6 +536,23 @@ export function CreateBookingPage() {
               </div>
             )}
 
+            {/* Assigned barber row (any-barber mode only) */}
+            {!barberId && selectedSlot && autoAssignedBarber && (
+              <AssignedBarberRow
+                assignedBarber={autoAssignedBarber}
+                availableBarbers={(slotBarberMap.get(selectedSlot) ?? [])
+                  .map((id) => {
+                    const b = barbers.find((x) => x.id === id)
+                    return b ? { id: b.id, name: b.display_name } : null
+                  })
+                  .filter((b): b is { id: string; name: string } => b !== null)}
+                onSwap={(barberId) => {
+                  const b = barbers.find((x) => x.id === barberId)
+                  if (b) setAutoAssignedBarber({ id: b.id, name: b.display_name })
+                }}
+              />
+            )}
+
             {error && (
               <div className="px-3.5 py-2.5 bg-[#FCE8E8] border border-[#FCE8E8] rounded-lg">
                 <p className="text-[12px] text-[#9B2C2C]">{error}</p>
@@ -522,7 +628,7 @@ export function CreateBookingPage() {
                             h,
                             m,
                           )
-                          setSelectedSlot(slotDate.toISOString())
+                          handleSlotPick(slotDate.toISOString())
                         }}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
                           isSelected ? 'bg-[#1A1A1A] text-white' : 'hover:bg-gray-50'

@@ -31,6 +31,14 @@ const ICON_USERS = (
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 )
+const ICON_STAFF = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 11h-6" />
+    <path d="M19 8v6" />
+  </svg>
+)
 const ICON_NOTES = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -69,6 +77,7 @@ const NAV_ITEMS = [
   { path: '/admin/overblik', label: 'Overblik', icon: ICON_CHART },
   { path: '/admin/opret-booking', label: 'Opret booking', icon: ICON_PLUS },
   { path: '/admin/kunder', label: 'Kunder', icon: ICON_USERS },
+  { path: '/admin/medarbejdere', label: 'Medarbejdere', icon: ICON_STAFF },
   { path: '/admin/noter', label: 'Noter', icon: ICON_NOTES },
 ]
 
@@ -79,6 +88,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/admin/opret-booking')) return 'Opret booking'
   if (pathname.startsWith('/admin/kunder/')) return 'Kunde'
   if (pathname.startsWith('/admin/kunder')) return 'Kunder'
+  if (pathname.startsWith('/admin/medarbejdere')) return 'Medarbejdere'
   if (pathname.startsWith('/admin/booking/')) return 'Booking'
   if (pathname.startsWith('/admin/noter')) return 'Salonnoter'
   return 'Admin'

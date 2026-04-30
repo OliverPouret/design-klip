@@ -14,6 +14,7 @@ import { CalendarPage } from './pages/admin/CalendarPage'
 import { InsightsPage } from './pages/admin/InsightsPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
 import { CustomersPage } from './pages/admin/CustomersPage'
+import { MedarbejderePage } from './pages/admin/MedarbejderePage'
 import { NotesPage } from './pages/admin/NotesPage'
 import { BookingDetailPage } from './pages/admin/BookingDetailPage'
 
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="overblik" element={<InsightsPage />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
+            <Route path="medarbejdere" element={<MedarbejderePage />} />
             <Route path="noter" element={<NotesPage />} />
             <Route path="booking/:bookingId" element={<BookingDetailPage />} />
           </Route>
