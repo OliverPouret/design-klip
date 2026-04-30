@@ -14,6 +14,10 @@ import { MissedRevenueCard } from '../../components/admin/oekonomi/MissedRevenue
 import { CustomerInsights } from '../../components/admin/oekonomi/CustomerInsights'
 import { HourlyHeatmap } from '../../components/admin/oekonomi/HourlyHeatmap'
 import { MomsCard } from '../../components/admin/oekonomi/MomsCard'
+import { ExportSection } from '../../components/admin/oekonomi/ExportSection'
+import { AlertsSection } from '../../components/admin/oekonomi/AlertsSection'
+import { AlertsBanner } from '../../components/admin/oekonomi/AlertsBanner'
+import { ZRapportButton } from '../../components/admin/oekonomi/ZRapportButton'
 import { getIsoWeekday } from '../../utils/revenueUtils'
 
 interface BarberHourRow {
@@ -156,6 +160,8 @@ export function OekonomiPage() {
 
   return (
     <div className="md:h-full md:overflow-y-auto md:pr-1 space-y-8">
+      <AlertsBanner />
+
       <div>
         <h1 className="font-serif text-[28px] text-gray-900 leading-tight">Økonomi</h1>
         <p className="text-sm text-gray-500 mt-1">Komplet finansielt overblik for Design Klip</p>
@@ -226,6 +232,12 @@ export function OekonomiPage() {
           <HourlyHeatmap bookings={currentBookings} hours={barberHours} />
 
           <MomsCard bookings={currentBookings} start={state.start} end={state.end} />
+
+          <ExportSection bookings={currentBookings} start={state.start} end={state.end} />
+
+          <AlertsSection />
+
+          <ZRapportButton />
         </>
       )}
     </div>

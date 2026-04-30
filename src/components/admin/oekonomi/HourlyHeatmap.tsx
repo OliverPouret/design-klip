@@ -87,16 +87,6 @@ export function HourlyHeatmap({ bookings, hours }: HourlyHeatmapProps) {
     return { busiest, quietest }
   }, [grid, range])
 
-  const cellColor = (avg: number): string => {
-    if (avg <= 0) return 'bg-gray-50'
-    const ratio = grid.max > 0 ? avg / grid.max : 0
-    // Use opacity from tailwind by inline style
-    const alpha = 0.1 + ratio * 0.85
-    return ''
-    // unused; we use inline style below
-    void alpha
-  }
-
   return (
     <div>
       <h2 className="text-sm font-medium text-gray-900 mb-1">Travleste tider</h2>
@@ -141,7 +131,6 @@ export function HourlyHeatmap({ bookings, hours }: HourlyHeatmapProps) {
               })}
             </tbody>
           </table>
-          {cellColor(0)}
         </div>
 
         {hoverCell && (
