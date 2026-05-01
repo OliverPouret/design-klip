@@ -16,6 +16,7 @@ import { OekonomiPage } from './pages/admin/OekonomiPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
 import { CustomersPage } from './pages/admin/CustomersPage'
 import { MedarbejderePage } from './pages/admin/MedarbejderePage'
+import { YdelserPage } from './pages/admin/YdelserPage'
 import { NotesPage } from './pages/admin/NotesPage'
 import { BookingDetailPage } from './pages/admin/BookingDetailPage'
 
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
             <Route path="medarbejdere" element={<MedarbejderePage />} />
+            <Route path="ydelser" element={<YdelserPage />} />
             <Route path="noter" element={<NotesPage />} />
             <Route path="booking/:bookingId" element={<BookingDetailPage />} />
           </Route>

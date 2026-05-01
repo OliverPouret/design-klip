@@ -25,6 +25,7 @@ export interface Service {
   description_en: string | null;
   duration_minutes: number;
   price_ore: number;
+  default_price_ore: number | null;
   category: string | null;
   photo_url: string | null;
   requires_deposit: boolean;
