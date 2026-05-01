@@ -135,7 +135,7 @@ export function InsightsPage() {
     <div className="md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto">
       <div className="max-w-3xl mx-auto w-full py-6 px-4 space-y-4">
         <div>
-          <h1 className="font-serif text-2xl text-gray-900">Forretningsoverblik</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Forretningsoverblik</h1>
           <p className="text-sm text-gray-500 leading-relaxed mt-1">
             AI-genereret oversigt over din forretning. Opdateres automatisk hver uge.
           </p>

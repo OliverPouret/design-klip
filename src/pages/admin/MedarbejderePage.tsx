@@ -28,7 +28,7 @@ export function MedarbejderePage() {
   return (
     <div className="md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto md:pr-1 space-y-4">
       <div className="flex-shrink-0">
-        <h1 className="font-serif text-[22px] text-ink">Medarbejdere</h1>
+        <h1 className="text-[22px] font-semibold text-ink">Medarbejdere</h1>
         <p className="text-sm text-gray-500 mt-1">
           Administrér frisørernes arbejdstider og fridage
         </p>

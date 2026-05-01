@@ -282,7 +282,7 @@ export function ForecastSection({ activeBarberIds }: { activeBarberIds: string[]
           return (
             <Card key={c.key} padding="md">
               <p className="text-[10px] tracking-[0.08em] uppercase text-gray-400 font-semibold">{c.label}</p>
-              <p className="font-serif text-[24px] text-gray-900 leading-none mt-2">{formatDKK(c.data.bekraeftet)}</p>
+              <p className="text-[24px] font-semibold text-gray-900 leading-none mt-2">{formatDKK(c.data.bekraeftet)}</p>
               <p className="text-xs text-gray-500 mt-1">bekræftet</p>
               <p className="text-xs text-gray-500 mt-2">+ {formatDKK(c.data.forventet)} forventet</p>
               <div className="my-3 border-t border-gray-100" />

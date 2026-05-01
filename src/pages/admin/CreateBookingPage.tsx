@@ -380,7 +380,7 @@ export function CreateBookingPage() {
       <div className="flex flex-col md:flex-row gap-4 md:min-h-0 flex-1 md:h-full">
         {/* LEFT: booking form */}
         <div className="w-full md:max-w-md md:flex-shrink-0 md:overflow-y-auto md:pr-1 space-y-4">
-          <h1 className="font-serif text-[22px] text-ink">Opret telefonbooking</h1>
+          <h1 className="text-[22px] font-semibold text-ink">Opret telefonbooking</h1>
 
           {/* Customer info — always visible */}
           <div className="bg-white rounded-lg border border-gray-200 p-5">

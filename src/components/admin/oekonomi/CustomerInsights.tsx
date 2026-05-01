@@ -163,12 +163,12 @@ export function CustomerInsights({ current, start, end }: CustomerInsightsProps)
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] text-gray-500 uppercase tracking-wide">Nye</p>
-              <p className="font-serif text-[22px] text-gray-900 leading-none mt-1">{split.nye}</p>
+              <p className="text-[22px] font-semibold text-gray-900 leading-none mt-1">{split.nye}</p>
               <p className="text-xs text-gray-500 mt-1">{split.nyePct}%</p>
             </div>
             <div>
               <p className="text-[11px] text-gray-500 uppercase tracking-wide">Gengangere</p>
-              <p className="font-serif text-[22px] text-gray-900 leading-none mt-1">{split.gengangere}</p>
+              <p className="text-[22px] font-semibold text-gray-900 leading-none mt-1">{split.gengangere}</p>
               <p className="text-xs text-gray-500 mt-1">{split.gengangerePct}%</p>
             </div>
           </div>

@@ -216,7 +216,7 @@ export function CalendarPage() {
           >
             ← Forrige
           </button>
-          <h1 className="font-serif text-[18px] text-gray-900 capitalize">
+          <h1 className="text-[18px] font-semibold text-gray-900 capitalize">
             {MONTH_FULL[month]} {year}
           </h1>
           <button
@@ -302,15 +302,15 @@ export function CalendarPage() {
         <div className="grid grid-cols-3 md:grid-cols-1 gap-3 md:gap-3">
           <Card padding="sm">
             <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Bookinger</p>
-            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{totalBookings}</p>
+            <p className="text-[24px] font-semibold text-gray-900 mt-1 leading-none">{totalBookings}</p>
           </Card>
           <Card padding="sm">
             <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Aktive dage</p>
-            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{activeDays}</p>
+            <p className="text-[24px] font-semibold text-gray-900 mt-1 leading-none">{activeDays}</p>
           </Card>
           <Card padding="sm">
             <p className="text-[11px] tracking-[0.08em] uppercase text-gray-400 font-semibold">Gns. pr. dag</p>
-            <p className="font-serif text-[24px] text-gray-900 mt-1 leading-none">{avgPerDay}</p>
+            <p className="text-[24px] font-semibold text-gray-900 mt-1 leading-none">{avgPerDay}</p>
           </Card>
         </div>
       </div>

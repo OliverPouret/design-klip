@@ -128,7 +128,7 @@ export function KPITileRow({
             <p className="text-[10px] tracking-[0.08em] uppercase text-gray-400 font-semibold">
               {t.label}
             </p>
-            <p className="font-serif text-[24px] text-gray-900 leading-none mt-2">{t.value}</p>
+            <p className="text-[24px] font-semibold text-gray-900 leading-none mt-2">{t.value}</p>
             <DeltaPill
               direction={delta.direction}
               pct={delta.pct}

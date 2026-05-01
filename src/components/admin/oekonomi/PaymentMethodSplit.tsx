@@ -32,12 +32,12 @@ export function PaymentMethodSplit({ bookings }: PaymentMethodSplitProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-[10px] tracking-[0.08em] uppercase text-gray-400 font-semibold">📞 Telefon</p>
-          <p className="font-serif text-[24px] text-gray-900 leading-none mt-2">{stats.phone.count}</p>
+          <p className="text-[24px] font-semibold text-gray-900 leading-none mt-2">{stats.phone.count}</p>
           <p className="text-xs text-gray-500 mt-1">{formatDKK(stats.phone.revenue)} · {phonePct}%</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-[10px] tracking-[0.08em] uppercase text-gray-400 font-semibold">🌐 Online</p>
-          <p className="font-serif text-[24px] text-gray-900 leading-none mt-2">{stats.web.count}</p>
+          <p className="text-[24px] font-semibold text-gray-900 leading-none mt-2">{stats.web.count}</p>
           <p className="text-xs text-gray-500 mt-1">{formatDKK(stats.web.revenue)} · {webPct}%</p>
         </div>
       </div>

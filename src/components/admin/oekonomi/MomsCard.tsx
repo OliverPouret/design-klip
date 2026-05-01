@@ -185,7 +185,7 @@ export function MomsCard({ bookings, start, end }: MomsCardProps) {
         <p className="text-sm text-gray-500">
           Moms opkrævet i perioden ({formatDanishDate(start)} – {formatDanishDate(end)}):
         </p>
-        <p className="font-serif text-[28px] text-gray-900 leading-none mt-2 text-right">
+        <p className="text-[28px] font-semibold text-gray-900 leading-none mt-2 text-right">
           {formatDKK(totals.moms)}
         </p>
 

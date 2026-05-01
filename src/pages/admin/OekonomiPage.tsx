@@ -163,7 +163,7 @@ export function OekonomiPage() {
       <AlertsBanner />
 
       <div>
-        <h1 className="font-serif text-[28px] text-gray-900 leading-tight">Økonomi</h1>
+        <h1 className="text-[28px] font-semibold text-gray-900 leading-tight">Økonomi</h1>
         <p className="text-sm text-gray-500 mt-1">Komplet finansielt overblik for Design Klip</p>
       </div>
 

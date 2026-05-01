@@ -31,7 +31,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-[#1A1A1A] relative">
       <div className="w-full max-w-sm bg-white rounded-lg shadow-xl p-8">
         <div className="text-center mb-8">
-          <h1 className="font-serif text-[26px] text-gray-900">Design Klip</h1>
+          <h1 className="text-[26px] font-semibold text-gray-900">Design Klip</h1>
           <p className="text-[13px] text-gray-500 mt-1">Personale login</p>
         </div>
 

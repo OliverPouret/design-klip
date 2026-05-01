@@ -152,7 +152,7 @@ export function BookingDetailPage() {
       <Card>
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 className="font-serif text-[20px] text-ink">Booking #{booking.short_code}</h1>
+            <h1 className="text-[20px] font-semibold text-ink">Booking #{booking.short_code}</h1>
             <div className="flex items-center gap-2 mt-2">
               <StatusBadge status={booking.status} />
               <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#8A8A8A]">

@@ -162,29 +162,29 @@ export function TodayPage() {
   return (
     <div className="md:h-full md:overflow-y-auto md:pr-1 space-y-6">
       <div>
-        <h1 className="font-serif text-[24px] text-gray-900 capitalize">{dayHeading}</h1>
+        <h1 className="text-[24px] font-semibold text-gray-900 capitalize">{dayHeading}</h1>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card padding="sm">
-          <p className="font-serif text-[26px] text-gray-900 leading-none">{totalBookings}</p>
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{totalBookings}</p>
           <p className="text-xs text-gray-500 mt-1">bookinger i dag</p>
         </Card>
         <Card padding="sm">
-          <p className="font-serif text-[26px] text-gray-900 leading-none">{formatDKK(totalRevenueOre)}</p>
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{formatDKK(totalRevenueOre)}</p>
           <p className="text-xs text-gray-500 mt-1">forventet omsætning</p>
         </Card>
         <Card padding="sm">
-          <p className="font-serif text-[26px] text-gray-900 leading-none">{onlineCount}</p>
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{onlineCount}</p>
           <p className="text-xs text-gray-500 mt-1">online bookinger</p>
         </Card>
         <Card padding="sm">
-          <p className="font-serif text-[26px] text-gray-900 leading-none">{phoneCount}</p>
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{phoneCount}</p>
           <p className="text-xs text-gray-500 mt-1">telefonbookinger</p>
         </Card>
         <Card padding="sm">
-          <p className="font-serif text-[26px] text-gray-900 leading-none">{noShowCount}</p>
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{noShowCount}</p>
           <p className="text-xs text-gray-500 mt-1">udeblivelser</p>
         </Card>
       </div>

@@ -147,7 +147,8 @@ export function AdminLayout() {
     <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col md:flex-row bg-[#F9FAFB]">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col bg-[#1A1A1A] text-white w-[220px] md:h-screen flex-shrink-0">
-        <div className="px-4 py-5 border-b border-white/[0.08]">
+        <div className="px-4 py-5 border-b border-white/[0.08] text-center">
+          <img src="/logo.png" alt="Design Klip" className="w-16 h-16 mx-auto mb-3" />
           <p className="font-serif text-[17px] tracking-wide">Design Klip</p>
           <p className="text-[12px] text-white/60 mt-1">
             {barberName ?? 'Admin'}
@@ -172,7 +173,10 @@ export function AdminLayout() {
 
       {/* Mobile top bar */}
       <header className="md:hidden sticky top-0 z-30 bg-[#1A1A1A] text-white px-4 py-3 flex items-center justify-between border-b border-white/[0.08]">
-        <p className="font-serif text-[16px]">Design Klip</p>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="" className="w-7 h-7" />
+          <p className="font-serif text-[16px]">Design Klip</p>
+        </div>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? 'Luk menu' : 'Åbn menu'}
@@ -207,7 +211,10 @@ export function AdminLayout() {
       <main className="flex-1 flex flex-col md:h-screen md:overflow-hidden">
         {/* Page title bar */}
         <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5 flex-shrink-0">
-          <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="" className="w-7 h-7" />
+            <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
+          </div>
         </div>
 
         {/* Content area — fixed frame on desktop; pages handle their own internal scroll */}
