@@ -59,6 +59,7 @@ export function CreateBookingPage() {
   const { barbers } = useBarbers()
 
   const [serviceId, setServiceId] = useState<string | null>(null)
+  const [eligibleBarberIds, setEligibleBarberIds] = useState<Set<string> | null>(null)
   const [barberId, setBarberId] = useState<string | null>(null)
   const [barberWorkdays, setBarberWorkdays] = useState<number[] | null>(null)
   const [barberTimeOff, setBarberTimeOff] = useState<{ starts_at: string; ends_at: string }[]>([])
@@ -82,6 +83,29 @@ export function CreateBookingPage() {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
+
+  // Fetch eligible barbers whenever the service changes
+  useEffect(() => {
+    if (!serviceId) {
+      setEligibleBarberIds(null)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('barber_services')
+      .select('barber_id')
+      .eq('service_id', serviceId)
+      .then(({ data }) => {
+        if (cancelled) return
+        const ids = new Set<string>((data ?? []).map((r) => r.barber_id))
+        setEligibleBarberIds(ids)
+        // If currently selected barber is no longer eligible, reset
+        setBarberId((prev) => (prev && !ids.has(prev) ? null : prev))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [serviceId])
 
   // Fetch existing bookings whenever date or barber changes — used for the live schedule
   useEffect(() => {
@@ -148,8 +172,10 @@ export function CreateBookingPage() {
       return
     }
 
-    // "Any barber" mode: query each active barber separately and merge
-    const activeBarbers = barbers.filter((b) => b.is_active)
+    // "Any barber" mode: query each eligible active barber separately and merge
+    const activeBarbers = barbers.filter(
+      (b) => b.is_active && (!eligibleBarberIds || eligibleBarberIds.has(b.id))
+    )
     const results = await Promise.all(
       activeBarbers.map(async (b) => {
         const { data } = await supabase.rpc('get_available_slots', {
@@ -479,15 +505,22 @@ export function CreateBookingPage() {
                 >
                   Første ledige
                 </button>
-                {barbers.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => handleBarberSelect(b.id)}
-                    className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
-                  >
-                    {b.display_name}
-                  </button>
-                ))}
+                {barbers
+                  .filter((b) => !eligibleBarberIds || eligibleBarberIds.has(b.id))
+                  .map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => handleBarberSelect(b.id)}
+                      className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
+                    >
+                      {b.display_name}
+                    </button>
+                  ))}
+                {serviceId && eligibleBarberIds && eligibleBarberIds.size === 0 && (
+                  <p className="col-span-2 text-xs text-[#9B2C2C] mt-1">
+                    Ingen frisører kan udføre denne ydelse.
+                  </p>
+                )}
               </div>
             </div>
 
