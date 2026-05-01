@@ -91,10 +91,11 @@ export function BookingDetailPage() {
       .update({ status: 'completed' })
       .eq('id', booking.id)
 
-    // Fire-and-forget: regenerate the cached AI profile after the note is saved
-    supabase.functions
-      .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
-      .catch(console.error)
+    // V2-PARKED: AI customer profile auto-generation
+    // Reactivate by uncommenting and importing the relevant flow.
+    // supabase.functions
+    //   .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
+    //   .catch(console.error)
 
     setBooking({ ...booking, status: 'completed' })
     setActionLoading(false)
@@ -130,10 +131,11 @@ export function BookingDetailPage() {
       setCustNotes([data as CustNote, ...custNotes])
       setNewNote('')
 
-      // Fire-and-forget: regenerate the cached AI profile after the note is saved
-      supabase.functions
-        .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
-        .catch(console.error)
+      // V2-PARKED: AI customer profile auto-generation
+      // Reactivate by uncommenting and importing the relevant flow.
+      // supabase.functions
+      //   .invoke('generate-customer-profile', { body: { customer_id: booking.customer.id } })
+      //   .catch(console.error)
     }
   }
 

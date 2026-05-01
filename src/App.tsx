@@ -12,7 +12,6 @@ import { LoginPage } from './pages/admin/LoginPage'
 import { TodayPage } from './pages/admin/TodayPage'
 import { CalendarPage } from './pages/admin/CalendarPage'
 import { InsightsPage } from './pages/admin/InsightsPage'
-import { OekonomiPage } from './pages/admin/OekonomiPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
 import { CustomersPage } from './pages/admin/CustomersPage'
 import { MedarbejderePage } from './pages/admin/MedarbejderePage'
@@ -41,7 +40,6 @@ export default function App() {
             <Route path="i-dag" element={<TodayPage />} />
             <Route path="kalender" element={<CalendarPage />} />
             <Route path="overblik" element={<InsightsPage />} />
-            <Route path="oekonomi" element={<OekonomiPage />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
             <Route path="medarbejdere" element={<MedarbejderePage />} />

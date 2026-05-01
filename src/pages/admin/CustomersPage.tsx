@@ -180,25 +180,25 @@ export function CustomersPage() {
       setNotes([data as CustNote, ...notes])
       setNewNote('')
 
-      // Fire-and-forget: regenerate the cached AI profile in customer_ai_profiles
-      supabase.functions
-        .invoke('generate-customer-profile', { body: { customer_id: selectedId } })
-        .then(() => {
-          // Re-fetch the cached profile so the panel shows the new text
-          if (!selectedId) return
-          supabase
-            .from('customer_ai_profiles')
-            .select('profile_text, generated_at')
-            .eq('customer_id', selectedId)
-            .maybeSingle()
-            .then(({ data: profile }) => {
-              const row = profile as { profile_text: string; generated_at: string } | null
-              if (row) {
-                setAiProfile({ text: row.profile_text, generatedAt: new Date(row.generated_at) })
-              }
-            })
-        })
-        .catch(console.error)
+      // V2-PARKED: AI customer profile auto-generation
+      // Reactivate by uncommenting and importing the relevant flow.
+      // supabase.functions
+      //   .invoke('generate-customer-profile', { body: { customer_id: selectedId } })
+      //   .then(() => {
+      //     if (!selectedId) return
+      //     supabase
+      //       .from('customer_ai_profiles')
+      //       .select('profile_text, generated_at')
+      //       .eq('customer_id', selectedId)
+      //       .maybeSingle()
+      //       .then(({ data: profile }) => {
+      //         const row = profile as { profile_text: string; generated_at: string } | null
+      //         if (row) {
+      //           setAiProfile({ text: row.profile_text, generatedAt: new Date(row.generated_at) })
+      //         }
+      //       })
+      //   })
+      //   .catch(console.error)
     }
   }
 

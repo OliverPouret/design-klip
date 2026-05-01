@@ -1,169 +1,283 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { MonthRangePicker } from '../../components/admin/MonthRangePicker'
-import { BusinessOverview } from '../../components/admin/BusinessOverview'
+import { formatDKK } from '../../utils/revenueUtils'
 
-interface OverviewRow {
-  period_months: number
-  summary_text: string
-  generated_at: string
-  stats_json: Record<string, unknown> | null
+interface BookingStats {
+  count: number
+  revenueOre: number
 }
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+interface OverviewData {
+  bookings: {
+    today: number
+    week: number
+    month: number
+  }
+  missed: {
+    noShows: number
+    cancelled: number
+  }
+  economy: {
+    total: BookingStats
+    today: BookingStats
+    week: BookingStats
+    month: BookingStats
+    threeMonths: BookingStats
+    year: BookingStats
+  }
+}
 
-function monthsBetween(earliest: Date, today: Date): number {
-  const years = today.getFullYear() - earliest.getFullYear()
-  const months = today.getMonth() - earliest.getMonth()
-  // Add 1 so a single-day-old shop still gets at least 1 month
-  return Math.max(1, years * 12 + months + 1)
+interface BookingRow {
+  id: string
+  price_ore: number | null
+  status: string
+  starts_at: string
+}
+
+const ACTIVE_STATUSES = ['confirmed', 'completed', 'pending']
+
+function inRange(b: BookingRow, start: Date, end: Date): boolean {
+  const ts = new Date(b.starts_at).getTime()
+  return ts >= start.getTime() && ts <= end.getTime()
+}
+
+function bucket(bookings: BookingRow[], start: Date, end: Date): BookingStats {
+  let count = 0
+  let revenueOre = 0
+  for (const b of bookings) {
+    if (ACTIVE_STATUSES.includes(b.status) && inRange(b, start, end)) {
+      count++
+      revenueOre += b.price_ore || 0
+    }
+  }
+  return { count, revenueOre }
 }
 
 export function InsightsPage() {
-  const [maxMonths, setMaxMonths] = useState(6)
-  const [selectedMonths, setSelectedMonths] = useState(1)
-  const [summary, setSummary] = useState<string | null>(null)
-  const [stats, setStats] = useState<Record<string, unknown> | null>(null)
-  const [generatedAt, setGeneratedAt] = useState<Date | null>(null)
+  const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [forceLoading, setForceLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch earliest booking on mount → derive maxMonths
-  useEffect(() => {
-    supabase
-      .from('bookings')
-      .select('starts_at')
-      .order('starts_at', { ascending: true })
-      .limit(1)
-      .then(({ data }) => {
-        const first = (data as { starts_at: string }[] | null)?.[0]
-        if (first) {
-          const m = monthsBetween(new Date(first.starts_at), new Date())
-          setMaxMonths(Math.min(60, m))
-        }
-      })
-  }, [])
-
-  // Load (or generate) the overview when selectedMonths changes
   useEffect(() => {
     let cancelled = false
-    const load = async () => {
+    async function load() {
       setLoading(true)
       setError(null)
+      try {
+        const now = new Date()
 
-      const { data: cached } = await supabase
-        .from('business_overviews')
-        .select('*')
-        .eq('period_months', selectedMonths)
-        .maybeSingle()
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
-      if (cancelled) return
+        const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay()
+        const weekStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - (dayOfWeek - 1),
+          0,
+          0,
+          0,
+        )
+        const weekEnd = new Date(
+          weekStart.getFullYear(),
+          weekStart.getMonth(),
+          weekStart.getDate() + 6,
+          23,
+          59,
+          59,
+        )
 
-      const cachedRow = cached as OverviewRow | null
-      const isFresh =
-        cachedRow && Date.now() - new Date(cachedRow.generated_at).getTime() < SEVEN_DAYS_MS
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-      if (cachedRow && isFresh) {
-        setSummary(cachedRow.summary_text)
-        setStats(cachedRow.stats_json)
-        setGeneratedAt(new Date(cachedRow.generated_at))
-        setLoading(false)
-        return
+        const threeMonthsStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 90,
+          0,
+          0,
+          0,
+        )
+
+        const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0)
+        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59)
+
+        const { data: rows, error: dbErr } = await supabase
+          .from('bookings')
+          .select('id, price_ore, status, starts_at')
+
+        if (cancelled) return
+        if (dbErr) throw dbErr
+
+        const bookings = ((rows as BookingRow[] | null) ?? [])
+
+        const bookingsCount = (start: Date, end: Date) =>
+          bookings.filter(
+            (b) => ACTIVE_STATUSES.includes(b.status) && inRange(b, start, end),
+          ).length
+
+        const noShowsThisMonth = bookings.filter(
+          (b) => b.status === 'no_show' && inRange(b, monthStart, monthEnd),
+        ).length
+        const cancelledThisMonth = bookings.filter(
+          (b) => b.status === 'cancelled' && inRange(b, monthStart, monthEnd),
+        ).length
+
+        const completed = bookings.filter((b) => b.status === 'completed')
+        const total: BookingStats = {
+          count: completed.length,
+          revenueOre: completed.reduce((sum, b) => sum + (b.price_ore || 0), 0),
+        }
+
+        setData({
+          bookings: {
+            today: bookingsCount(todayStart, todayEnd),
+            week: bookingsCount(weekStart, weekEnd),
+            month: bookingsCount(monthStart, monthEnd),
+          },
+          missed: {
+            noShows: noShowsThisMonth,
+            cancelled: cancelledThisMonth,
+          },
+          economy: {
+            total,
+            today: bucket(bookings, todayStart, todayEnd),
+            week: bucket(bookings, weekStart, weekEnd),
+            month: bucket(bookings, monthStart, monthEnd),
+            threeMonths: bucket(bookings, threeMonthsStart, todayEnd),
+            year: bucket(bookings, yearStart, yearEnd),
+          },
+        })
+      } catch (err) {
+        console.error('Failed to load Overblik:', err)
+        if (!cancelled) setError('Kunne ikke indlæse data.')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-
-      // Show stale cache (if any) while regenerating
-      if (cachedRow) {
-        setSummary(cachedRow.summary_text)
-        setStats(cachedRow.stats_json)
-        setGeneratedAt(new Date(cachedRow.generated_at))
-      } else {
-        setSummary(null)
-        setStats(null)
-        setGeneratedAt(null)
-      }
-
-      const { data: fresh, error: fnErr } = await supabase.functions.invoke(
-        'generate-business-overview',
-        { body: { period_months: selectedMonths } },
-      )
-      if (cancelled) return
-      if (fnErr) {
-        setError('Kunne ikke generere oversigt. Prøv igen.')
-        setLoading(false)
-        return
-      }
-      const payload = fresh as
-        | { summary_text?: string; stats_json?: Record<string, unknown>; generated_at?: string }
-        | null
-      if (payload?.summary_text) {
-        setSummary(payload.summary_text)
-        setStats(payload.stats_json ?? null)
-        setGeneratedAt(payload.generated_at ? new Date(payload.generated_at) : new Date())
-      }
-      setLoading(false)
     }
     load()
     return () => {
       cancelled = true
     }
-  }, [selectedMonths])
-
-  const handleForceRegenerate = async () => {
-    setForceLoading(true)
-    setError(null)
-    const { data, error: fnErr } = await supabase.functions.invoke(
-      'generate-business-overview',
-      { body: { period_months: selectedMonths } },
-    )
-    setForceLoading(false)
-    if (fnErr) {
-      setError('Kunne ikke opdatere. Prøv igen.')
-      return
-    }
-    const payload = data as
-      | { summary_text?: string; stats_json?: Record<string, unknown>; generated_at?: string }
-      | null
-    if (payload?.summary_text) {
-      setSummary(payload.summary_text)
-      setStats(payload.stats_json ?? null)
-      setGeneratedAt(payload.generated_at ? new Date(payload.generated_at) : new Date())
-    }
-  }
+  }, [])
 
   return (
-    <div className="md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto">
-      <div className="max-w-3xl mx-auto w-full py-6 px-4 space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Forretningsoverblik</h1>
-          <p className="text-sm text-gray-500 leading-relaxed mt-1">
-            AI-genereret oversigt over din forretning. Opdateres automatisk hver uge.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <MonthRangePicker
-            value={selectedMonths}
-            max={maxMonths}
-            onChange={setSelectedMonths}
-          />
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
-
-        <BusinessOverview
-          summary={summary}
-          stats={stats as never}
-          generatedAt={generatedAt}
-          isLoading={loading}
-          onForceRegenerate={handleForceRegenerate}
-          forceLoading={forceLoading}
-        />
+    <div className="md:h-full md:flex md:flex-col md:min-h-0 md:overflow-y-auto md:pr-1 space-y-6">
+      <div className="flex-shrink-0">
+        <h1 className="text-[22px] font-semibold text-ink">Overblik</h1>
+        <p className="text-sm text-gray-500 mt-1">Forretningens nøgletal</p>
       </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Indlæser…</p>
+      ) : error || !data ? (
+        <p className="text-sm text-red-600">{error ?? 'Kunne ikke indlæse data.'}</p>
+      ) : (
+        <>
+          <section>
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Bookinger</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <SimpleStatCard
+                label="I dag"
+                value={data.bookings.today}
+                suffix={data.bookings.today === 1 ? 'booking' : 'bookinger'}
+              />
+              <SimpleStatCard
+                label="Denne uge"
+                value={data.bookings.week}
+                suffix={data.bookings.week === 1 ? 'booking' : 'bookinger'}
+              />
+              <SimpleStatCard
+                label="Denne måned"
+                value={data.bookings.month}
+                suffix={data.bookings.month === 1 ? 'booking' : 'bookinger'}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold text-gray-900 mb-3">
+              Mistede bookinger denne måned
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SimpleStatCard
+                label="Udeblivelser"
+                value={data.missed.noShows}
+                suffix={data.missed.noShows === 1 ? 'kunde' : 'kunder'}
+              />
+              <SimpleStatCard
+                label="Aflyste"
+                value={data.missed.cancelled}
+                suffix={data.missed.cancelled === 1 ? 'booking' : 'bookinger'}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Økonomi</h2>
+            <p className="text-sm text-gray-500 italic mb-4">
+              Tallene er vejledende og baseret på bookede tider. Faktisk omsætning kan afvige.
+            </p>
+
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-4">
+              <div className="text-[10px] tracking-[0.08em] uppercase text-gray-400 mb-2">
+                I alt gennemført
+              </div>
+              <div className="text-3xl font-semibold text-gray-900">
+                {data.economy.total.count}{' '}
+                <span className="text-base text-gray-400 font-normal">
+                  {data.economy.total.count === 1 ? 'booking' : 'bookinger'}
+                </span>
+              </div>
+              <div className="text-xl text-[#B08A3E] mt-1">
+                ~{formatDKK(data.economy.total.revenueOre)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <PeriodCard label="I dag" stats={data.economy.today} />
+              <PeriodCard label="Denne uge" stats={data.economy.week} />
+              <PeriodCard label="Denne måned" stats={data.economy.month} />
+              <PeriodCard label="Seneste 3 måneder" stats={data.economy.threeMonths} />
+              <PeriodCard label="I år" stats={data.economy.year} />
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  )
+}
+
+function SimpleStatCard({
+  label,
+  value,
+  suffix,
+}: {
+  label: string
+  value: number
+  suffix: string
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-5">
+      <div className="text-[10px] tracking-[0.08em] uppercase text-gray-400 mb-2">{label}</div>
+      <div className="text-2xl font-semibold text-gray-900">
+        {value} <span className="text-base text-gray-400 font-normal">{suffix}</span>
+      </div>
+    </div>
+  )
+}
+
+function PeriodCard({ label, stats }: { label: string; stats: BookingStats }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-5">
+      <div className="text-[10px] tracking-[0.08em] uppercase text-gray-400 mb-2">{label}</div>
+      <div className="text-xl font-semibold text-gray-900">
+        {stats.count}{' '}
+        <span className="text-sm text-gray-400 font-normal">
+          {stats.count === 1 ? 'booking' : 'bookinger'}
+        </span>
+      </div>
+      <div className="text-base text-[#B08A3E] mt-1">~{formatDKK(stats.revenueOre)}</div>
     </div>
   )
 }
