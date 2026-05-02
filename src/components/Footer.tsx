@@ -18,7 +18,7 @@ export function Footer() {
         </div>
 
         <p className="text-[0.625rem] text-ink-subtle">
-          © Design Klip 2026 · Hjemmeside af Pouret Digital
+          © Design Klip 2026
         </p>
       </div>
     </footer>
