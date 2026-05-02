@@ -32,13 +32,6 @@ const SELECT_DEFAULT =
   'border-gray-200 bg-white hover:border-[#B08A3E]/40 hover:bg-[#FAFAF8]'
 const SELECT_ACTIVE = 'border-[#B08A3E] bg-[#B08A3E]/[0.06] text-ink font-medium'
 
-const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
-  const totalMins = 9 * 60 + i * 30
-  const h = Math.floor(totalMins / 60).toString().padStart(2, '0')
-  const m = (totalMins % 60).toString().padStart(2, '0')
-  return `${h}:${m}`
-})
-
 const MONTH_FULL = [
   'januar', 'februar', 'marts', 'april', 'maj', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'december',
@@ -397,6 +390,39 @@ export function CreateBookingPage() {
     return m
   }, [slotBarberMap])
 
+  // Times shown in the right-hand grid = union of RPC-returned available slots
+  // and 30-min slot positions occupied by existing bookings. Both sources are
+  // guaranteed to fall within barber working hours (the RPC enforces it for
+  // available slots; bookings are only created within hours via the same RPC).
+  // Any time outside working hours (e.g. after Saturday's 14:00 close) is
+  // therefore absent from both sets and is correctly filtered out.
+  const displayTimes = useMemo(() => {
+    const set = new Set<string>()
+    for (const time of slotsByLocalTime.keys()) set.add(time)
+    if (selectedDate) {
+      for (const bk of existingBookings) {
+        if (barberId && bk.barber_id !== barberId) continue
+        const start = new Date(bk.starts_at)
+        if (
+          start.getFullYear() !== selectedDate.getFullYear() ||
+          start.getMonth() !== selectedDate.getMonth() ||
+          start.getDate() !== selectedDate.getDate()
+        ) {
+          continue
+        }
+        const startMin = start.getHours() * 60 + start.getMinutes()
+        const flooredStart = Math.floor(startMin / 30) * 30
+        const endTotalMin = startMin + bk.duration_minutes
+        for (let cursor = flooredStart; cursor < endTotalMin && cursor < 24 * 60; cursor += 30) {
+          const hh = String(Math.floor(cursor / 60)).padStart(2, '0')
+          const mm = String(cursor % 60).padStart(2, '0')
+          set.add(`${hh}:${mm}`)
+        }
+      }
+    }
+    return Array.from(set).sort()
+  }, [slotsByLocalTime, existingBookings, barberId, selectedDate])
+
   const cleanedPhoneLength = customerPhone.replace(/\s/g, '').length
   const canSubmit =
     serviceId && selectedSlot && customerName.trim() && customerPhone.trim() && !submitting
@@ -650,9 +676,13 @@ export function CreateBookingPage() {
                 <div className="flex items-center justify-center h-full p-8">
                   <p className="text-sm text-gray-400">Vælg en ydelse for at se ledige tider</p>
                 </div>
+              ) : displayTimes.length === 0 ? (
+                <div className="flex items-center justify-center h-full p-8">
+                  <p className="text-sm text-gray-400">Ingen ledige tider på denne dato</p>
+                </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {TIME_SLOTS.map((time) => {
+                  {displayTimes.map((time) => {
                     const booked = isSlotBooked(time)
                     // Compare against the same raw iso we render with — never
                     // re-stringify selectedSlot because format may differ.
