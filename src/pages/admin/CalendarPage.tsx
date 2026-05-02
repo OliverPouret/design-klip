@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
+import { useAuth } from '../../lib/auth'
 import { Card } from '../../components/admin/Card'
 import { RescheduleModal } from '../../components/admin/booking/RescheduleModal'
 import { DayScheduleGrid } from '../../components/admin/schedule/DayScheduleGrid'
@@ -43,6 +44,8 @@ export function CalendarPage() {
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
+  const [completingMode, setCompletingMode] = useState(false)
+  const [completionNote, setCompletionNote] = useState('')
   const [monthRefreshKey, setMonthRefreshKey] = useState(0)
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
@@ -51,6 +54,39 @@ export function CalendarPage() {
   // date clicks update the panel in place without re-scrolling.
   const dayPanelEverOpened = useRef(false)
   const { barbers: activeBarbers } = useBarbers()
+  const { user } = useAuth()
+
+  const closeManageModal = () => {
+    setManageBooking(null)
+    setCompletingMode(false)
+    setCompletionNote('')
+  }
+
+  const handleSaveAndComplete = async () => {
+    if (!manageBooking) return
+    const id = manageBooking.id
+    const customerId = manageBooking.customer.id
+    const day = dayViewDate
+    const trimmed = completionNote.trim()
+    setActionLoading(true)
+    try {
+      if (trimmed) {
+        await supabase.from('customer_notes').insert({
+          customer_id: customerId,
+          author_id: user?.id ?? null,
+          body: trimmed,
+          tags: ['klip'],
+          booking_id: id,
+        })
+      }
+      await supabase.from('bookings').update({ status: 'completed' }).eq('id', id)
+    } finally {
+      setActionLoading(false)
+      closeManageModal()
+      refreshMonth()
+      if (day) handleDayClick(day)
+    }
+  }
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -390,7 +426,7 @@ export function CalendarPage() {
                 Booking — {manageBooking.customer.full_name}
               </h3>
               <button
-                onClick={() => setManageBooking(null)}
+                onClick={closeManageModal}
                 className="text-gray-400 hover:text-gray-700 transition-colors"
                 aria-label="Luk"
               >
@@ -449,66 +485,91 @@ export function CalendarPage() {
 
             {/* Actions */}
             <div className="px-5 py-4 border-t border-gray-200 space-y-2">
-              {manageBooking.status === 'confirmed' && (
+              {completingMode ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={completionNote}
+                    onChange={(e) => setCompletionNote(e.target.value)}
+                    placeholder="Hvad blev lavet i dag?"
+                    rows={3}
+                    autoFocus
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#B08A3E] transition-colors resize-none"
+                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleSaveAndComplete}
+                      disabled={actionLoading}
+                      className="bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading ? 'Gemmer…' : 'Gem og fuldfør'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCompletingMode(false)
+                        setCompletionNote('')
+                      }}
+                      disabled={actionLoading}
+                      className="text-xs text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                    >
+                      Annullér
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <>
+                  {manageBooking.status === 'confirmed' && (
+                    <>
+                      <button
+                        onClick={() => setCompletingMode(true)}
+                        disabled={actionLoading}
+                        className="w-full py-2.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Markér som fuldført
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const id = manageBooking.id
+                          const day = dayViewDate
+                          setActionLoading(true)
+                          await supabase.from('bookings').update({ status: 'no_show' }).eq('id', id)
+                          closeManageModal()
+                          setActionLoading(false)
+                          refreshMonth()
+                          if (day) handleDayClick(day)
+                        }}
+                        disabled={actionLoading}
+                        className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Udeblevet
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={async () => {
+                      if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
                       const id = manageBooking.id
                       const day = dayViewDate
                       setActionLoading(true)
-                      await supabase.from('bookings').update({ status: 'completed' }).eq('id', id)
-                      setManageBooking(null)
+                      await supabase
+                        .from('bookings')
+                        .update({
+                          status: 'cancelled',
+                          cancelled_at: new Date().toISOString(),
+                          cancelled_by: 'admin',
+                        })
+                        .eq('id', id)
+                      closeManageModal()
                       setActionLoading(false)
                       refreshMonth()
                       if (day) handleDayClick(day)
                     }}
                     disabled={actionLoading}
-                    className="w-full py-2.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                    className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    Markér som fuldført
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const id = manageBooking.id
-                      const day = dayViewDate
-                      setActionLoading(true)
-                      await supabase.from('bookings').update({ status: 'no_show' }).eq('id', id)
-                      setManageBooking(null)
-                      setActionLoading(false)
-                      refreshMonth()
-                      if (day) handleDayClick(day)
-                    }}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Udeblevet
+                    Afbestil booking
                   </button>
                 </>
               )}
-              <button
-                onClick={async () => {
-                  if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
-                  const id = manageBooking.id
-                  const day = dayViewDate
-                  setActionLoading(true)
-                  await supabase
-                    .from('bookings')
-                    .update({
-                      status: 'cancelled',
-                      cancelled_at: new Date().toISOString(),
-                      cancelled_by: 'admin',
-                    })
-                    .eq('id', id)
-                  setManageBooking(null)
-                  setActionLoading(false)
-                  refreshMonth()
-                  if (day) handleDayClick(day)
-                }}
-                disabled={actionLoading}
-                className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Afbestil booking
-              </button>
             </div>
           </div>
         </div>
