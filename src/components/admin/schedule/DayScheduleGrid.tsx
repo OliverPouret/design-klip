@@ -167,7 +167,7 @@ export function DayScheduleGrid({
                     new Date(booking.ends_at).getTime() < Date.now() &&
                     (booking.status === 'confirmed' || booking.status === 'pending')
 
-                  let blockClass = ''
+                  let blockClass: string
                   let blockStyle: CSSProperties = {}
                   let nameClass = 'text-gray-900'
                   let metaClass = 'text-gray-600'
