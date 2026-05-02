@@ -15,7 +15,8 @@ interface BookingJoined {
   starts_at: string
   cancel_token: string
   reminder_sent_at: string | null
-  customer: { phone_e164: string; full_name: string }
+  send_sms: boolean
+  customer: { id: string; phone_e164: string; full_name: string; sms_opt_out: boolean }
   barber: { display_name: string }
   service: { name_da: string }
 }
@@ -31,8 +32,8 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   const { data: bookingsRaw, error } = await supabase
     .from('bookings')
     .select(`
-      id, short_code, starts_at, cancel_token, reminder_sent_at,
-      customer:customers!inner(phone_e164, full_name),
+      id, short_code, starts_at, cancel_token, reminder_sent_at, send_sms,
+      customer:customers!inner(id, phone_e164, full_name, sms_opt_out),
       barber:barbers!inner(display_name),
       service:services!inner(name_da)
     `)
@@ -80,8 +81,31 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   const appUrl = process.env.VITE_APP_URL || 'https://design-klip.vercel.app'
 
   let sentCount = 0
+  let skippedCount = 0
 
   for (const booking of bookings) {
+    // Skip + log when either opt-out flag forbids sending. Mark
+    // reminder_sent_at so we don't keep re-checking this booking.
+    if (booking.customer.sms_opt_out || !booking.send_sms) {
+      const skipReason = booking.customer.sms_opt_out ? 'opt_out' : 'per_booking_disabled'
+      await supabase.from('sms_log').insert({
+        booking_id: booking.id,
+        customer_id: booking.customer.id,
+        template_id: 'reminder_24h',
+        to_phone: booking.customer.phone_e164,
+        body: '',
+        provider: 'gatewayapi',
+        status: 'skipped',
+        error: skipReason,
+      })
+      await supabase
+        .from('bookings')
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq('id', booking.id)
+      skippedCount++
+      continue
+    }
+
     const startsAt = new Date(booking.starts_at)
 
     const message = interpolateTemplate((template as { body_da: string }).body_da, {
@@ -126,5 +150,5 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     }
   }
 
-  return res.status(200).json({ sent: sentCount, total: bookings.length })
+  return res.status(200).json({ sent: sentCount, skipped: skippedCount, total: bookings.length })
 }

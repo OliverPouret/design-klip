@@ -17,7 +17,8 @@ interface BookingJoined {
   short_code: string
   starts_at: string
   cancel_token: string
-  customer: { phone_e164: string; full_name: string }
+  send_sms: boolean
+  customer: { id: string; phone_e164: string; full_name: string; sms_opt_out: boolean }
   barber: { display_name: string }
   service: { name_da: string }
 }
@@ -50,12 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: true, reason: 'already_sent' })
   }
 
-  // Fetch booking with customer, service, barber
+  // Fetch booking with customer, service, barber + the two SMS opt-out flags
   const { data: bookingRaw, error: bookingError } = await supabase
     .from('bookings')
     .select(`
-      id, short_code, starts_at, cancel_token,
-      customer:customers!inner(phone_e164, full_name),
+      id, short_code, starts_at, cancel_token, send_sms,
+      customer:customers!inner(id, phone_e164, full_name, sms_opt_out),
       barber:barbers!inner(display_name),
       service:services!inner(name_da)
     `)
@@ -67,6 +68,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const booking = bookingRaw as unknown as BookingJoined
+
+  // Skip if either flag forbids sending. Customer-level opt-out wins over
+  // per-booking flag — see customers.sms_opt_out comment in 0009 migration.
+  if (booking.customer.sms_opt_out || !booking.send_sms) {
+    const skipReason = booking.customer.sms_opt_out ? 'opt_out' : 'per_booking_disabled'
+    await supabase.from('sms_log').insert({
+      booking_id: booking.id,
+      customer_id: booking.customer.id,
+      template_id: type,
+      to_phone: booking.customer.phone_e164,
+      body: '',
+      provider: 'gatewayapi',
+      status: 'skipped',
+      error: skipReason,
+    })
+    return res.status(200).json({ ok: true, skipped: true, reason: skipReason })
+  }
 
   // Rate limit: max 5 SMS per phone in last hour
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()

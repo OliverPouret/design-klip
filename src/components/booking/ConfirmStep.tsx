@@ -40,6 +40,10 @@ export function ConfirmStep({
       // V1: marketing-SMS consent disabled until V2 — see /agency/v2-roadmap/.
       // The DB column is preserved; we always pass false in V1.
       p_marketing_opt_in: false,
+      // Public booking flow always asks for transactional SMS. The RPC
+      // still respects customers.sms_opt_out and forces send_sms=false
+      // on the booking row when the customer is opted out.
+      p_send_sms: true,
     })
 
     setLoading(false)
