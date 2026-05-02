@@ -17,7 +17,22 @@ export function PrivacyPage() {
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvem er vi?</h2>
           <p>Design Klip er en frisør i Roskilde. Vi er dataansvarlige for de oplysninger, vi indsamler om dig.</p>
-          <p>Design Klip · Holbækvej 39, 4000 Roskilde · Tlf: +45 46 35 93 48 · kontakt@designklip.dk</p>
+          <p>
+            Design Klip · Holbækvej 39, 4000 Roskilde · Tlf:{' '}
+            <a
+              href="tel:+4546359348"
+              className="text-accent-deep underline underline-offset-2 hover:text-ink"
+            >
+              +45 46 35 93 48
+            </a>
+            {' · '}
+            <a
+              href="mailto:kontakt@designklip.dk"
+              className="text-accent-deep underline underline-offset-2 hover:text-ink"
+            >
+              kontakt@designklip.dk
+            </a>
+          </p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvilke oplysninger indsamler vi?</h2>
           <ul className="list-disc pl-5 space-y-1">
@@ -55,7 +70,16 @@ export function PrivacyPage() {
             <li>En bookingbekræftelse, når du booker en tid.</li>
             <li>En påmindelse ca. 24 timer før din tid.</li>
           </ol>
-          <p>Disse SMS'er er servicemeddelelser nødvendige for at opfylde aftalen og kan ikke fravælges, så længe du har en aktiv booking. Hvis du ikke ønsker at modtage SMS'er, kan du i stedet bestille tid pr. telefon på +45 46 35 93 48.</p>
+          <p>
+            Disse SMS'er er servicemeddelelser nødvendige for at opfylde aftalen og kan ikke fravælges, så længe du har en aktiv booking. Hvis du ikke ønsker at modtage SMS'er, kan du i stedet bestille tid pr. telefon på{' '}
+            <a
+              href="tel:+4546359348"
+              className="text-accent-deep underline underline-offset-2 hover:text-ink"
+            >
+              +45 46 35 93 48
+            </a>
+            .
+          </p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Hvor længe gemmer vi dine oplysninger?</h2>
           <p>Aktiv kundedata (navn, mobilnummer, evt. e-mail, note og booking-historik) slettes eller anonymiseres senest 24 måneder efter dit seneste besøg hos Design Klip. Bogføringsbilag (faktura/kvittering) opbevares i 5 år fra udgangen af regnskabsåret jf. bogføringsloven §10. SMS-log (afsendelseshistorik) opbevares i 12 måneder af tekniske og dokumentationsmæssige grunde.</p>

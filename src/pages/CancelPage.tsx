@@ -85,7 +85,11 @@ export function CancelPage() {
               <>
                 <h2 className="font-serif text-xl text-ink mb-2">Noget gik galt</h2>
                 <p className="text-sm text-ink-muted mb-8">
-                  Vi kunne ikke afbestille din tid. Måske er den allerede afbestilt, eller linket er udløbet. Ring til os på +45 46 35 93 48.
+                  Vi kunne ikke afbestille din tid. Måske er den allerede afbestilt, eller linket er udløbet. Ring til os på{' '}
+                  <a href="tel:+4546359348" className="text-accent-deep underline">
+                    +45 46 35 93 48
+                  </a>
+                  .
                 </p>
                 <Link to="/" className="text-sm text-accent-deep underline">
                   Tilbage til forsiden
