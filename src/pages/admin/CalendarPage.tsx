@@ -466,6 +466,21 @@ export function CalendarPage() {
                   {manageBooking.customer.phone_e164}
                 </a>
               </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500 flex-shrink-0">Note</span>
+                <span
+                  className={`text-right ${
+                    manageBooking.klipNote?.body ? 'text-gray-900' : 'text-gray-400'
+                  }`}
+                  title={manageBooking.klipNote?.body || undefined}
+                >
+                  {manageBooking.klipNote?.body
+                    ? manageBooking.klipNote.body.length > 80
+                      ? `${manageBooking.klipNote.body.slice(0, 80)}…`
+                      : manageBooking.klipNote.body
+                    : '—'}
+                </span>
+              </div>
             </div>
 
             {/* Actions */}
