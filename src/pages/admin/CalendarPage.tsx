@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
 import { useAuth } from '../../lib/auth'
@@ -49,10 +49,6 @@ export function CalendarPage() {
   const [monthRefreshKey, setMonthRefreshKey] = useState(0)
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
-  const dayPanelRef = useRef<HTMLDivElement>(null)
-  // Scroll to the day panel only on the FIRST open after a Luk; subsequent
-  // date clicks update the panel in place without re-scrolling.
-  const dayPanelEverOpened = useRef(false)
   const { barbers: activeBarbers } = useBarbers()
   const { user } = useAuth()
 
@@ -217,14 +213,6 @@ export function CalendarPage() {
     })
     setDayBarberHours(hoursMap)
     setDayLoading(false)
-
-    // Scroll only on the first open since the panel was last closed.
-    if (!dayPanelEverOpened.current) {
-      dayPanelEverOpened.current = true
-      setTimeout(() => {
-        dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    }
   }
 
   // Real-time subscription: any booking change (insert/update/delete from any
@@ -359,7 +347,7 @@ export function CalendarPage() {
 
       {/* Day panel — full schedule grid for the chosen day */}
       {dayViewDate && (
-        <div ref={dayPanelRef} className="flex-shrink-0">
+        <div className="flex-shrink-0">
           <div className="flex items-center justify-between px-1 mb-2">
             <h2 className="text-sm font-medium text-gray-900 capitalize">
               {dayViewDate.toLocaleDateString('da-DK', {
@@ -369,10 +357,7 @@ export function CalendarPage() {
               })}
             </h2>
             <button
-              onClick={() => {
-                setDayViewDate(null)
-                dayPanelEverOpened.current = false
-              }}
+              onClick={() => setDayViewDate(null)}
               className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
             >
               ✕ Luk
