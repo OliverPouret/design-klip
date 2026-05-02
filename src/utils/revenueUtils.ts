@@ -20,6 +20,15 @@ export function formatDanishDate(d: Date): string {
   return `${d.getDate()}. ${months[d.getMonth()]}. ${d.getFullYear()}`
 }
 
+// "tirs. 9. jun. kl. 14.00"
+export function formatDanishDateTime(d: Date): string {
+  const weekdays = ['søn', 'man', 'tirs', 'ons', 'tors', 'fre', 'lør']
+  const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
+  const hh = d.getHours().toString().padStart(2, '0')
+  const mm = d.getMinutes().toString().padStart(2, '0')
+  return `${weekdays[d.getDay()]}. ${d.getDate()}. ${months[d.getMonth()]}. kl. ${hh}.${mm}`
+}
+
 export function localMidnightUTC(d: Date): string {
   const local = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
   return local.toISOString()

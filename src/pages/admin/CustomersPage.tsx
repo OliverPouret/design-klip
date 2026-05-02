@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
-import { formatDanishDate } from '../../utils/revenueUtils'
+import { formatDanishDate, formatDanishDateTime } from '../../utils/revenueUtils'
 
 interface CustomerRow {
   id: string
@@ -504,64 +504,66 @@ export function CustomersPage() {
                 {bookings.length === 0 ? (
                   <p className="text-xs text-gray-400">Ingen bookinger endnu.</p>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {bookings.map((bk) => {
                       const hasNotes = bookingsWithNotes.has(bk.id)
                       const isExpanded = expandedBookings.has(bk.id)
                       const notesForBooking = expandedNotes.get(bk.id) ?? []
+                      const bookingDateLabel = formatDanishDateTime(new Date(bk.starts_at))
                       return (
-                        <div key={bk.id} className="border-b border-gray-100 last:border-0">
-                          <div className="flex items-center justify-between py-2 gap-3">
+                        <div key={bk.id}>
+                          <div className="grid grid-cols-3 items-center gap-3 py-2 border-b border-gray-100">
                             <div className="min-w-0">
                               <p className="text-sm text-gray-700 truncate">
-                                {bk.service.name_da} hos {bk.barber.display_name}
+                                {bk.service.name_da} · {bk.barber.display_name}
                                 {bk.source === 'phone' && ' · 📞'}
                               </p>
-                              <p className="text-xs text-gray-400">
-                                {new Date(bk.starts_at).toLocaleDateString('da-DK', {
-                                  weekday: 'short',
-                                  day: 'numeric',
-                                  month: 'short',
-                                })}
-                                {' kl. '}
-                                {new Date(bk.starts_at).toLocaleTimeString('da-DK', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
                             </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+                            <div className="min-w-0 text-center">
+                              <p className="text-xs text-gray-500 truncate">{bookingDateLabel}</p>
+                            </div>
+                            <div className="flex items-center justify-end gap-3 min-w-0">
+                              <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                 {STATUS_LABEL[bk.status] ?? bk.status}
                               </span>
-                              {hasNotes && (
-                                <button
-                                  onClick={() => toggleBookingNotes(bk.id)}
-                                  className="text-gray-400 hover:text-gray-700 transition-colors text-xs leading-none"
-                                  aria-label={isExpanded ? 'Skjul noter' : 'Vis noter'}
-                                >
-                                  {isExpanded ? '▼' : '▶'}
-                                </button>
-                              )}
+                              <button
+                                onClick={() => hasNotes && toggleBookingNotes(bk.id)}
+                                disabled={!hasNotes}
+                                className={`text-xs leading-none transition-colors ${
+                                  hasNotes
+                                    ? 'text-[#B08A3E] hover:text-[#8C6A28] cursor-pointer'
+                                    : 'text-gray-300 cursor-default'
+                                }`}
+                                aria-label={
+                                  hasNotes
+                                    ? isExpanded
+                                      ? 'Skjul note'
+                                      : 'Vis note'
+                                    : 'Ingen note'
+                                }
+                              >
+                                {isExpanded && hasNotes ? '▼' : '▶'}
+                              </button>
                             </div>
                           </div>
                           {isExpanded && hasNotes && (
-                            <div className="pb-3 pl-3 border-l-2 border-[#B08A3E]/40 ml-1 space-y-2">
+                            <div className="bg-gray-50 border-l-2 border-[#B08A3E] p-4 mt-2">
+                              <div className="text-xs uppercase tracking-wider text-gray-500 mb-2">
+                                Hvad blev lavet
+                              </div>
                               {notesForBooking.length === 0 ? (
-                                <p className="text-xs text-gray-400">Henter noter…</p>
+                                <p className="text-xs text-gray-400">Henter note…</p>
                               ) : (
-                                notesForBooking.map((n) => (
-                                  <div key={n.id}>
-                                    <p className="text-sm text-gray-700">{n.body}</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">
-                                      {new Date(n.created_at).toLocaleDateString('da-DK', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                        year: 'numeric',
-                                      })}
+                                <div className="space-y-3">
+                                  {notesForBooking.map((n) => (
+                                    <p
+                                      key={n.id}
+                                      className="text-sm text-gray-800 leading-relaxed whitespace-pre-line"
+                                    >
+                                      {n.body}
                                     </p>
-                                  </div>
-                                ))
+                                  ))}
+                                </div>
                               )}
                             </div>
                           )}
