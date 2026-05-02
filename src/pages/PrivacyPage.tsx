@@ -47,7 +47,6 @@ export function PrivacyPage() {
             <li>GatewayAPI (SMS-udsendelse, EU-baseret) — databehandleraftale indgået.</li>
             <li>Supabase (database og hosting, EU/Frankfurt).</li>
             <li>Vercel (web hosting).</li>
-            <li>Anthropic via Claude Haiku (kun aktiveret i V2 ved AI-funktioner — IKKE aktivt i V1).</li>
           </ul>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Markedsføring via SMS</h2>
