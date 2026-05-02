@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useBarbers } from '../../hooks/useBarbers'
 import { isoWeekday } from '../../lib/danishDates'
-import { formatDKK } from '../../types/database'
+// V1: removed — formatDKK no longer used after stripping revenue stat
+// import { formatDKK } from '../../types/database'
 import { Card } from '../../components/admin/Card'
 
 interface TodayBooking {
@@ -13,8 +14,8 @@ interface TodayBooking {
   status: string
   source: string
   barber_id: string
-  // Price lives on the booking row (captured at booking time), not on services
-  price_ore: number
+  // V1: removed — price_ore no longer rendered on this page
+  // price_ore: number
   customer: { full_name: string }
   service: { name_da: string; duration_minutes: number }
   barber: { display_name: string }
@@ -59,7 +60,7 @@ export function TodayPage() {
         supabase
           .from('bookings')
           .select(`
-            id, starts_at, ends_at, status, source, barber_id, price_ore,
+            id, starts_at, ends_at, status, source, barber_id,
             customer:customers!inner(full_name),
             service:services!inner(name_da, duration_minutes),
             barber:barbers!inner(display_name)
@@ -116,43 +117,22 @@ export function TodayPage() {
   // Stats — only confirmed/pending count toward the day
   const active = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
   const totalBookings = active.length
-  const totalRevenueOre = active.reduce((sum, b) => sum + (b.price_ore ?? 0), 0)
-  const onlineCount = active.filter((b) => b.source === 'web').length
-  const phoneCount = active.filter((b) => b.source === 'phone').length
+  // V1: removed — revenue/source split stat cards no longer shown
+  // const totalRevenueOre = active.reduce((sum, b) => sum + (b.price_ore ?? 0), 0)
+  // const onlineCount = active.filter((b) => b.source === 'web').length
+  // const phoneCount = active.filter((b) => b.source === 'phone').length
   const noShowCount = bookings.filter((b) => b.status === 'no_show').length
 
   // Per-barber stats
+  // V1: removed — first/last booking time + utilization progress bar
   const barberStats = barbers.map((b) => {
-    const theirBookings = active.filter((bk) => bk.barber_id === b.id).sort((a, c) => a.starts_at.localeCompare(c.starts_at))
+    const theirBookings = active.filter((bk) => bk.barber_id === b.id)
     const hours = barberHours[b.id]
-    let totalSlots = 0
-    if (hours) {
-      const [oH, oM] = hours.opens.split(':').map(Number)
-      const [cH, cM] = hours.closes.split(':').map(Number)
-      totalSlots = Math.max(0, ((cH * 60 + cM) - (oH * 60 + oM)) / 30)
-    }
-    const bookedSlots = theirBookings.reduce(
-      (sum, bk) => sum + (bk.service?.duration_minutes ?? 0) / 30,
-      0,
-    )
-    const filledRatio = totalSlots > 0 ? Math.min(1, bookedSlots / totalSlots) : 0
-    const firstTime = theirBookings[0]
-      ? new Date(theirBookings[0].starts_at).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
-      : null
-    const lastTime = theirBookings[theirBookings.length - 1]
-      ? new Date(theirBookings[theirBookings.length - 1].starts_at).toLocaleTimeString('da-DK', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : null
     return {
       id: b.id,
       name: b.display_name,
       isOff: !hours,
       count: theirBookings.length,
-      filledRatio,
-      firstTime,
-      lastTime,
     }
   })
 
@@ -166,23 +146,12 @@ export function TodayPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card padding="sm">
           <p className="text-[26px] font-semibold text-gray-900 leading-none">{totalBookings}</p>
           <p className="text-xs text-gray-500 mt-1">bookinger i dag</p>
         </Card>
-        <Card padding="sm">
-          <p className="text-[26px] font-semibold text-gray-900 leading-none">{formatDKK(totalRevenueOre)}</p>
-          <p className="text-xs text-gray-500 mt-1">forventet omsætning</p>
-        </Card>
-        <Card padding="sm">
-          <p className="text-[26px] font-semibold text-gray-900 leading-none">{onlineCount}</p>
-          <p className="text-xs text-gray-500 mt-1">online bookinger</p>
-        </Card>
-        <Card padding="sm">
-          <p className="text-[26px] font-semibold text-gray-900 leading-none">{phoneCount}</p>
-          <p className="text-xs text-gray-500 mt-1">telefonbookinger</p>
-        </Card>
+        {/* V1: removed — forventet omsætning, online bookinger, telefonbookinger */}
         <Card padding="sm">
           <p className="text-[26px] font-semibold text-gray-900 leading-none">{noShowCount}</p>
           <p className="text-xs text-gray-500 mt-1">udeblivelser</p>
@@ -199,22 +168,9 @@ export function TodayPage() {
               {b.isOff ? (
                 <p className="text-xs text-gray-500 italic mt-1">Fridag</p>
               ) : (
-                <>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {b.count} {b.count === 1 ? 'klip' : 'klip'} i dag
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {b.firstTime && b.lastTime
-                      ? `${b.firstTime} — ${b.lastTime}`
-                      : 'Ingen bookinger'}
-                  </p>
-                  <div className="mt-2 h-1.5 bg-gray-100 rounded overflow-hidden">
-                    <div
-                      className="h-full bg-[#B08A3E]"
-                      style={{ width: `${Math.round(b.filledRatio * 100)}%` }}
-                    />
-                  </div>
-                </>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {b.count === 0 ? 'Ingen bookinger' : `${b.count} klip i dag`}
+                </p>
               )}
             </Card>
           ))}
