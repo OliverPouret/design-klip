@@ -13,10 +13,20 @@ export function TermsPage() {
         <h1 className="font-serif text-display-lg text-ink mb-8">Handelsbetingelser</h1>
 
         <div className="prose prose-sm text-ink-muted space-y-6 text-sm leading-relaxed">
-          <p className="text-xs text-ink-subtle">Senest opdateret: april 2026</p>
+          <p className="text-xs text-ink-subtle">Senest opdateret: maj 2026</p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Tidsbestilling</h2>
           <p>Du booker en tid via vores hjemmeside. Når du har booket, modtager du en SMS med dato, tidspunkt og et link til at afbestille.</p>
+
+          <h2 className="font-serif text-lg text-ink mt-8 mb-2">SMS-kommunikation om din booking</h2>
+          <p>Når du booker en tid hos Design Klip, sender vi dig:</p>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>En bekræftelses-SMS umiddelbart efter bookingen er gennemført.</li>
+            <li>En påmindelses-SMS ca. 24 timer før din tid.</li>
+          </ol>
+          <p>Disse SMS'er er nødvendige for at opfylde aftalen om frisørbehandling og kan ikke fravælges, så længe du har en aktiv booking. SMS'erne sendes via vores tekniske partner GatewayAPI fra afsendernavn 'DesignKlip' til det mobilnummer, du har angivet ved bookingen.</p>
+          <p>Hvis du ikke ønsker at modtage SMS'er, kan du i stedet bestille tid pr. telefon på +45 46 35 93 48.</p>
+          <p>Design Klip sender ikke markedsføring, tilbud eller nyheder via SMS uden særskilt samtykke. Se vores <Link to="/privatlivspolitik" className="underline underline-offset-2 hover:text-ink">Privatlivspolitik</Link> for detaljer om databehandling.</p>
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Priser</h2>
           <p>Alle priser er i danske kroner inkl. moms. De gældende priser er dem, der vises på hjemmesiden, når du booker.</p>
