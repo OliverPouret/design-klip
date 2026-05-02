@@ -33,6 +33,15 @@ export default {
         'serif-sc': ['"Cormorant SC"', '"Cormorant Garamond"', 'Georgia', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      animation: {
+        'pulse-amber': 'pulse-amber 1.5s ease-in-out infinite',
+      },
+      keyframes: {
+        'pulse-amber': {
+          '0%, 100%': { boxShadow: '0 0 0 2px #F59E0B' },
+          '50%': { boxShadow: '0 0 0 2px transparent' },
+        },
+      },
       fontSize: {
         'display-xl': ['clamp(2.5rem, 5vw + 1rem, 4.5rem)', { lineHeight: '1.05', letterSpacing: '-0.01em', fontWeight: '500' }],
         'display-lg': ['clamp(2rem, 3.5vw + 0.5rem, 3.25rem)', { lineHeight: '1.10', letterSpacing: '-0.005em', fontWeight: '500' }],

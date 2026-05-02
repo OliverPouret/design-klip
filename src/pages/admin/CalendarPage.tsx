@@ -21,9 +21,11 @@ interface DayBooking {
   source: string
   barber_id: string
   service_id: string
+  customer_id: string
   customer: { id: string; full_name: string; phone_e164: string }
   service: { name_da: string }
   barber: { display_name: string; slug: string }
+  klipNote?: { body: string } | null
 }
 
 export function CalendarPage() {
@@ -38,7 +40,6 @@ export function CalendarPage() {
   const [dayBarberHours, setDayBarberHours] = useState<
     Record<string, { opens: string; closes: string } | null>
   >({})
-  const [dayNotedCustomerIds, setDayNotedCustomerIds] = useState<Set<string>>(new Set())
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
@@ -124,7 +125,7 @@ export function CalendarPage() {
     const { data } = await supabase
       .from('bookings')
       .select(`
-        id, starts_at, ends_at, duration_minutes, status, source, barber_id, service_id,
+        id, starts_at, ends_at, duration_minutes, status, source, barber_id, service_id, customer_id,
         customer:customers!inner(id, full_name, phone_e164),
         service:services!inner(name_da),
         barber:barbers!inner(display_name, slug)
@@ -134,7 +135,24 @@ export function CalendarPage() {
       .in('status', ['confirmed', 'pending', 'completed', 'no_show'])
       .order('starts_at')
 
-    const bookingList = (data ?? []) as unknown as DayBooking[]
+    let bookingList = (data ?? []) as unknown as DayBooking[]
+
+    // Attach the most recent klip-tagged note per booking (linked by booking_id).
+    const bookingIds = bookingList.map((b) => b.id)
+    if (bookingIds.length > 0) {
+      const { data: notes } = await supabase
+        .from('customer_notes')
+        .select('booking_id, body, created_at')
+        .in('booking_id', bookingIds)
+        .contains('tags', ['klip'])
+        .order('created_at', { ascending: false })
+      const noteMap = new Map<string, { body: string }>()
+      ;(notes as { booking_id: string; body: string; created_at: string }[] | null)?.forEach((n) => {
+        if (!noteMap.has(n.booking_id)) noteMap.set(n.booking_id, { body: n.body })
+      })
+      bookingList = bookingList.map((b) => ({ ...b, klipNote: noteMap.get(b.id) ?? null }))
+    }
+
     setDayBookings(bookingList)
 
     // Fetch barber working hours for this weekday + accounting for time_off
@@ -162,18 +180,6 @@ export function CalendarPage() {
       hoursMap[row.barber_id] = null
     })
     setDayBarberHours(hoursMap)
-
-    // Customer note flags for this day's customers
-    const customerIds = [...new Set(bookingList.map((b) => b.customer.id))]
-    const noted = new Set<string>()
-    if (customerIds.length > 0) {
-      const { data: notes } = await supabase
-        .from('customer_notes')
-        .select('customer_id')
-        .in('customer_id', customerIds)
-      ;(notes as { customer_id: string }[] | null)?.forEach((n) => noted.add(n.customer_id))
-    }
-    setDayNotedCustomerIds(noted)
     setDayLoading(false)
 
     // Scroll only on the first open since the panel was last closed.
@@ -360,9 +366,9 @@ export function CalendarPage() {
                   barber_id: b.barber_id,
                   customer: { id: b.customer.id, full_name: b.customer.full_name },
                   service: { name_da: b.service.name_da },
+                  klipNote: b.klipNote ?? null,
                 }))}
                 barberHours={dayBarberHours}
-                notedCustomerIds={dayNotedCustomerIds}
                 onBookingClick={(scheduleBooking) => {
                   // Look up the full DayBooking to populate the Administrér modal
                   const full = dayBookings.find((b) => b.id === scheduleBooking.id)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { isoWeekday } from '../../../lib/danishDates'
 
 export interface ScheduleBarber {
@@ -17,6 +17,7 @@ export interface ScheduleBooking {
   barber_id: string
   customer: { id: string; full_name: string }
   service: { name_da: string }
+  klipNote?: { body: string } | null
 }
 
 interface DayScheduleGridProps {
@@ -25,8 +26,6 @@ interface DayScheduleGridProps {
   bookings: ScheduleBooking[]
   // Map<barberId, { opens: 'HH:mm', closes: 'HH:mm' } | null>. Null = day off.
   barberHours: Record<string, { opens: string; closes: string } | null>
-  // Customer IDs that have non-empty notes — render a red ! badge on their blocks.
-  notedCustomerIds?: Set<string>
   onBookingClick: (booking: ScheduleBooking) => void
 }
 
@@ -38,7 +37,6 @@ export function DayScheduleGrid({
   barbers,
   bookings,
   barberHours,
-  notedCustomerIds,
   onBookingClick,
 }: DayScheduleGridProps) {
   const [slotHeight, setSlotHeight] = useState(DEFAULT_SLOT_HEIGHT)
@@ -110,12 +108,12 @@ export function DayScheduleGrid({
           return (
             <div
               key={barber.id}
-              className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-gray-900' : 'bg-[#FAFAF8]'}`}
+              className={`p-2.5 text-center border-l border-gray-200 ${isOff ? 'bg-gray-100' : 'bg-[#FAFAF8]'}`}
             >
-              <p className={`text-[13px] font-medium ${isOff ? 'text-gray-400 opacity-40' : 'text-gray-900'}`}>
+              <p className={`text-[13px] font-medium ${isOff ? 'text-gray-500' : 'text-gray-900'}`}>
                 {barber.display_name}
               </p>
-              {isOff && <p className="text-[11px] text-gray-500 mt-0.5">Fri i dag</p>}
+              {isOff && <p className="text-[11px] text-gray-500 italic mt-0.5">Fri i dag</p>}
             </div>
           )
         })}
@@ -131,13 +129,9 @@ export function DayScheduleGrid({
             <div
               key={label}
               className="absolute right-0 pr-2 text-right"
-              style={{
-                top: `${i * slotHeight}px`,
-                height: `${slotHeight}px`,
-                lineHeight: `${slotHeight}px`,
-              }}
+              style={{ top: `${i * slotHeight}px` }}
             >
-              <span className="text-[11px] text-gray-400">{label}</span>
+              <span className="text-[11px] text-gray-400 leading-none">{label}</span>
             </div>
           ))}
         </div>
@@ -151,7 +145,7 @@ export function DayScheduleGrid({
             <div
               key={barber.id}
               ref={timelineBodyRef}
-              className={`relative border-l border-gray-200 ${isOff ? 'bg-gray-900' : ''}`}
+              className={`relative border-l border-gray-200 ${isOff ? 'bg-gray-100' : ''}`}
               style={{ height: `${totalHeight}px` }}
             >
               {isOff && (
@@ -169,7 +163,44 @@ export function DayScheduleGrid({
               {!isOff &&
                 barberBookings.map((booking) => {
                   const style = getBlockStyle(booking)
-                  const hasNote = notedCustomerIds?.has(booking.customer.id)
+                  const isPastDue =
+                    new Date(booking.ends_at).getTime() < Date.now() &&
+                    (booking.status === 'confirmed' || booking.status === 'pending')
+
+                  let blockClass = ''
+                  let blockStyle: CSSProperties = {}
+                  let nameClass = 'text-gray-900'
+                  let metaClass = 'text-gray-600'
+                  let noteClass = 'text-gray-500'
+
+                  if (booking.status === 'completed') {
+                    blockClass = 'bg-gray-200 border-l-[3px] border-gray-300'
+                    nameClass = 'text-gray-500'
+                    metaClass = 'text-gray-400'
+                    noteClass = 'text-gray-400'
+                  } else if (booking.status === 'no_show') {
+                    blockClass = 'bg-red-50 border-l-[3px] border-red-300'
+                    nameClass = 'text-red-700'
+                    metaClass = 'text-red-500'
+                    noteClass = 'text-red-400'
+                  } else if (booking.status === 'cancelled') {
+                    blockClass = 'bg-gray-100 border-l-[3px] border-gray-200 line-through'
+                    nameClass = 'text-gray-400'
+                    metaClass = 'text-gray-400'
+                    noteClass = 'text-gray-400'
+                  } else if (isPastDue) {
+                    blockClass = 'bg-amber-50 border-l-[3px] border-amber-500 animate-pulse-amber'
+                    nameClass = 'text-gray-900'
+                    metaClass = 'text-gray-700'
+                    noteClass = 'text-gray-600'
+                  } else {
+                    blockClass = 'border-l-[3px]'
+                    blockStyle = {
+                      borderColor: barber.profile_color || '#B08A3E',
+                      backgroundColor: 'rgba(176, 138, 62, 0.15)',
+                    }
+                  }
+
                   return (
                     <button
                       key={booking.id}
@@ -177,26 +208,18 @@ export function DayScheduleGrid({
                       className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/40 transition-all text-left"
                       style={{ top: style.top, height: style.height, minHeight: '32px' }}
                     >
-                      <div
-                        className="h-full border-l-[3px] px-2.5 py-1.5"
-                        style={{
-                          borderColor: barber.profile_color || '#B08A3E',
-                          backgroundColor: 'rgba(176, 138, 62, 0.15)',
-                        }}
-                      >
+                      <div className={`h-full px-2.5 py-1.5 ${blockClass}`} style={blockStyle}>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[12px] font-medium text-gray-900 truncate">
+                          <span className={`text-[12px] font-medium truncate ${nameClass}`}>
                             {booking.customer.full_name}
                           </span>
-                          {hasNote && (
-                            <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#9B2C2C] text-white text-[8px] flex items-center justify-center font-bold leading-none">
-                              !
-                            </span>
-                          )}
                         </div>
-                        <p className="text-[11px] text-gray-600 truncate mt-0.5">
+                        <p className={`text-[11px] truncate mt-0.5 ${metaClass}`}>
                           {booking.service.name_da}
                           {booking.source === 'phone' && ' · 📞'}
+                        </p>
+                        <p className={`text-[11px] truncate mt-0.5 ${noteClass}`}>
+                          Note:{booking.klipNote?.body ? ` ${booking.klipNote.body}` : ''}
                         </p>
                       </div>
                     </button>

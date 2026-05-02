@@ -19,6 +19,7 @@ interface TodayBooking {
   customer: { full_name: string }
   service: { name_da: string; duration_minutes: number }
   barber: { display_name: string }
+  klipNote?: { body: string } | null
 }
 
 const WEEKDAYS_DA = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
@@ -76,7 +77,26 @@ export function TodayPage() {
           .gte('ends_at', dayStart.toISOString()),
       ])
 
-      setBookings((bookingsRes.data ?? []) as unknown as TodayBooking[])
+      let bookingList = (bookingsRes.data ?? []) as unknown as TodayBooking[]
+
+      const bookingIds = bookingList.map((b) => b.id)
+      if (bookingIds.length > 0) {
+        const { data: notes } = await supabase
+          .from('customer_notes')
+          .select('booking_id, body, created_at')
+          .in('booking_id', bookingIds)
+          .contains('tags', ['klip'])
+          .order('created_at', { ascending: false })
+        const noteMap = new Map<string, { body: string }>()
+        ;(notes as { booking_id: string; body: string; created_at: string }[] | null)?.forEach(
+          (n) => {
+            if (!noteMap.has(n.booking_id)) noteMap.set(n.booking_id, { body: n.body })
+          },
+        )
+        bookingList = bookingList.map((b) => ({ ...b, klipNote: noteMap.get(b.id) ?? null }))
+      }
+
+      setBookings(bookingList)
 
       const hMap: Record<string, { opens: string; closes: string } | null> = {}
       ;(
@@ -188,11 +208,8 @@ export function TodayPage() {
           <Card padding="none">
             <div className="divide-y divide-gray-100">
               {active.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center gap-3 px-4 py-3"
-                >
-                  <span className="text-sm font-medium text-gray-900 w-12 flex-shrink-0">
+                <div key={b.id} className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-sm font-medium text-gray-900 w-12 flex-shrink-0 mt-0.5">
                     {fmtTime(b.starts_at)}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -200,13 +217,18 @@ export function TodayPage() {
                     <p className="text-xs text-gray-500 truncate">
                       {b.service.name_da} · {b.barber.display_name}
                     </p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      Note:{b.klipNote?.body ? ` ${b.klipNote.body}` : ''}
+                    </p>
                   </div>
-                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-medium">
-                    {b.source === 'phone' ? '📞 Telefon' : '🌐 Online'}
-                  </span>
-                  <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">
-                    {STATUS_LABEL[b.status] ?? b.status}
-                  </span>
+                  <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
+                    <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-medium">
+                      {b.source === 'phone' ? '📞 Telefon' : '🌐 Online'}
+                    </span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                      {STATUS_LABEL[b.status] ?? b.status}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
