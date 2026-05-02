@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
 import { FixedBackground } from './components/FixedBackground'
 import { HomePage } from './pages/HomePage'
@@ -40,6 +40,7 @@ export default function App() {
             <Route path="i-dag" element={<TodayPage />} />
             <Route path="kalender" element={<CalendarPage />} />
             <Route path="overblik" element={<InsightsPage />} />
+            <Route path="oekonomi" element={<Navigate to="/admin/overblik" replace />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />
             <Route path="kunder" element={<CustomersPage />} />
             <Route path="medarbejdere" element={<MedarbejderePage />} />
