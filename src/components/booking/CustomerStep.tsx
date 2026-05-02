@@ -11,7 +11,8 @@ export interface CustomerInfo {
   phone: string
   email: string
   notes: string
-  marketingOptIn: boolean
+  // V2-PARKED: marketing SMS consent — see /agency/v2-roadmap/
+  // marketingOptIn: boolean
 }
 
 export function CustomerStep({
@@ -28,7 +29,8 @@ export function CustomerStep({
     phone: '',
     email: '',
     notes: '',
-    marketingOptIn: false,
+    // V2-PARKED: marketing SMS consent — see /agency/v2-roadmap/
+    // marketingOptIn: false,
   })
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({})
   const [returningCustomer, setReturningCustomer] = useState(false)
@@ -37,7 +39,7 @@ export function CustomerStep({
   const service = services.find((s) => s.slug === state.serviceSlug)
   const barber = state.anyBarber ? null : barbers.find((b) => b.slug === state.barberSlug)
 
-  const set = (field: keyof CustomerInfo, value: string | boolean) => {
+  const set = (field: keyof CustomerInfo, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
   }
@@ -145,8 +147,8 @@ export function CustomerStep({
           {returningCustomer && form.fullName && (
             <p className="text-xs text-green-600 mt-1">Velkommen tilbage!</p>
           )}
-          <p className="text-xs text-ink-subtle mt-1">
-            Du modtager en SMS-bekræftelse på dette nummer
+          <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+            Vi sender dig en bookingbekræftelse og en påmindelse 24 timer før din tid via SMS til dette nummer.
           </p>
         </div>
 
@@ -167,18 +169,18 @@ export function CustomerStep({
         {/* Notes (optional) */}
         <div>
           <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
-            Besked til frisøren <span className="text-ink-subtle font-normal normal-case">(valgfrit)</span>
+            Type af klipning <span className="text-ink-subtle font-normal normal-case">(valgfrit)</span>
           </label>
           <textarea
             value={form.notes}
             onChange={(e) => set('notes', e.target.value)}
-            placeholder="f.eks. fade 2 i siderne, langt på toppen"
+            placeholder='F.eks. "Low fade, lineup, lidt af toppen"'
             rows={3}
             className="w-full border border-border rounded-sm px-4 py-3 text-sm text-ink placeholder:text-ink-subtle/60 outline-none focus:border-accent transition-colors resize-none"
           />
         </div>
 
-        {/* Marketing opt-in */}
+        {/* V2-PARKED: marketing SMS consent checkbox — see /agency/v2-roadmap/
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -190,6 +192,7 @@ export function CustomerStep({
             Jeg vil gerne modtage tilbud og nyheder fra Design Klip via SMS
           </span>
         </label>
+        */}
       </div>
 
       <div className="mt-8">

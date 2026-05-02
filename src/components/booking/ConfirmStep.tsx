@@ -37,7 +37,9 @@ export function ConfirmStep({
       p_barber_id: state.resolvedBarberId,
       p_service_id: service.id,
       p_starts_at: state.startsAt,
-      p_marketing_opt_in: customer.marketingOptIn,
+      // V1: marketing-SMS consent disabled until V2 — see /agency/v2-roadmap/.
+      // The DB column is preserved; we always pass false in V1.
+      p_marketing_opt_in: false,
     })
 
     setLoading(false)

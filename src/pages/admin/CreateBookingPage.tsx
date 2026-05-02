@@ -482,13 +482,13 @@ export function CreateBookingPage() {
               </div>
               <div>
                 <label className="block text-[11px] tracking-[0.08em] uppercase text-[#8A8A8A] mb-1.5">
-                  Note (valgfrit)
+                  Type af klipning <span className="text-[#8A8A8A] font-normal normal-case">(valgfrit)</span>
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="f.eks. vil betale med MobilePay"
+                  placeholder='F.eks. "Low fade, lineup, lidt af toppen"'
                   className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-[#B08A3E] focus:ring-2 focus:ring-[#B08A3E]/15 transition-all"
                 />
               </div>
