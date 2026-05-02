@@ -21,6 +21,7 @@ interface CustomerDetail {
   last_booking_at: string | null
   notes_summary: string | null
   created_at: string
+  sms_opt_out: boolean
 }
 
 interface BookingHistory {
@@ -96,7 +97,7 @@ export function CustomersPage() {
     const fetchDetail = async () => {
       const { data: cust } = await supabase
         .from('customers')
-        .select('id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at')
+        .select('id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at, sms_opt_out')
         .eq('id', selectedId)
         .single()
       if (cust) setDetail(cust as CustomerDetail)
@@ -198,6 +199,30 @@ export function CustomersPage() {
     const next = new Set(expandedBookings)
     next.add(bookingId)
     setExpandedBookings(next)
+  }
+
+  const handleToggleSmsOptOut = async () => {
+    if (!detail) return
+    const newValue = !detail.sms_opt_out
+    const confirmMessage = newValue
+      ? `Bekræft: ${detail.full_name} afmeldes SMS. Ingen bekræftelse eller påmindelse sendes på fremtidige bookinger.`
+      : `Bekræft: ${detail.full_name} tilmeldes SMS igen. Bekræftelse og påmindelse sendes på fremtidige bookinger.`
+    if (!confirm(confirmMessage)) return
+
+    const { error } = await supabase
+      .from('customers')
+      .update({
+        sms_opt_out: newValue,
+        sms_opt_out_at: newValue ? new Date().toISOString() : null,
+      })
+      .eq('id', detail.id)
+
+    if (error) {
+      alert('Fejl ved opdatering: ' + error.message)
+      return
+    }
+
+    setDetail({ ...detail, sms_opt_out: newValue })
   }
 
   const handleAddNote = async () => {
@@ -410,6 +435,27 @@ export function CustomersPage() {
                       })}
                     </p>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                  <div className="min-w-0 pr-3">
+                    <span className="text-sm font-medium text-gray-900">SMS-kommunikation</span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {detail.sms_opt_out
+                        ? 'Kunden modtager ikke SMS’er.'
+                        : 'Kunden modtager bekræftelse og påmindelse.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleSmsOptOut}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                      detail.sms_opt_out
+                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        : 'bg-[#B08A3E] text-white hover:bg-[#8C6A28]'
+                    }`}
+                  >
+                    {detail.sms_opt_out ? 'Tilmeld SMS igen' : 'Afmeld SMS'}
+                  </button>
                 </div>
               </div>
 

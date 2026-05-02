@@ -25,6 +25,7 @@ interface CustomerLookupRow {
   id: string
   full_name: string
   phone_e164: string
+  sms_opt_out: boolean
 }
 
 const SELECT_BTN = 'text-left px-3.5 py-2.5 border rounded-lg text-sm transition-all'
@@ -68,6 +69,7 @@ export function CreateBookingPage() {
   const [notes, setNotes] = useState('')
   const [existingCustomer, setExistingCustomer] = useState<CustomerLookupRow | null>(null)
   const [lookupDone, setLookupDone] = useState(false)
+  const [sendSms, setSendSms] = useState(true)
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -254,7 +256,7 @@ export function CreateBookingPage() {
 
     const { data } = await supabase
       .from('customers')
-      .select('id, full_name, phone_e164')
+      .select('id, full_name, phone_e164, sms_opt_out')
       .ilike('phone_e164', `%${last8}`)
       .limit(1)
 
@@ -263,6 +265,8 @@ export function CreateBookingPage() {
       setExistingCustomer(cust)
       // Only fill name if currently empty (don't overwrite barber's typing)
       setCustomerName((prev) => prev || cust.full_name)
+      // If the customer is SMS-opted-out, auto-disable the per-booking flag.
+      if (cust.sms_opt_out) setSendSms(false)
     } else {
       setExistingCustomer(null)
     }
@@ -291,6 +295,7 @@ export function CreateBookingPage() {
       p_service_id: serviceId,
       p_starts_at: selectedSlot,
       p_marketing_opt_in: false,
+      p_send_sms: sendSms,
     })
 
     setSubmitting(false)
@@ -635,6 +640,28 @@ export function CreateBookingPage() {
                 }}
               />
             )}
+
+            <div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendSms}
+                  onChange={(e) => setSendSms(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-[#B08A3E]"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-medium">Send SMS-bekræftelse og påmindelse</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Slå fra hvis kunden har bedt om ikke at modtage SMS'er.
+                  </span>
+                </span>
+              </label>
+              {existingCustomer?.sms_opt_out && (
+                <p className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  ⚠ Denne kunde er afmeldt SMS. Ingen bekræftelse eller påmindelse sendes.
+                </p>
+              )}
+            </div>
 
             {error && (
               <div className="px-3.5 py-2.5 bg-[#FCE8E8] border border-[#FCE8E8] rounded-lg">
