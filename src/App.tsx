@@ -18,6 +18,8 @@ import { MedarbejderePage } from './pages/admin/MedarbejderePage'
 import { YdelserPage } from './pages/admin/YdelserPage'
 import { NotesPage } from './pages/admin/NotesPage'
 import { BookingDetailPage } from './pages/admin/BookingDetailPage'
+import { SmsTemplatesPage } from './pages/admin/SmsTemplatesPage'
+import { SmsTemplateEditor } from './pages/admin/SmsTemplateEditor'
 
 export default function App() {
   return (
@@ -46,6 +48,8 @@ export default function App() {
             <Route path="medarbejdere" element={<MedarbejderePage />} />
             <Route path="ydelser" element={<YdelserPage />} />
             <Route path="noter" element={<NotesPage />} />
+            <Route path="sms" element={<SmsTemplatesPage />} />
+            <Route path="sms/:id" element={<SmsTemplateEditor />} />
             <Route path="booking/:bookingId" element={<BookingDetailPage />} />
           </Route>
         </Routes>

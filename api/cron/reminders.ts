@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getSupabaseAdmin } from '../_lib/supabase-admin.js'
 import { sendSms } from '../_lib/sms.js'
-import { interpolateTemplate, formatDateDanish, formatTimeDanish } from '../_lib/templates.js'
+import { getTemplate, interpolateTemplate, formatDateDanish, formatTimeDanish } from '../_lib/templates.js'
 
 interface ShopAddress {
   street?: string
@@ -53,16 +53,8 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     return res.status(200).json({ sent: 0 })
   }
 
-  // Fetch reminder template
-  const { data: template } = await supabase
-    .from('sms_templates')
-    .select('body_da')
-    .eq('id', 'reminder_24h')
-    .single()
-
-  if (!template) {
-    return res.status(500).json({ error: 'Template not found' })
-  }
+  // Fetch reminder template (DB-first, with fallback constants for resilience)
+  const template = await getTemplate('reminder_24h', supabase)
 
   // Fetch shop settings
   const { data: settingsRows } = await supabase
@@ -82,6 +74,29 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
   let sentCount = 0
   let skippedCount = 0
+
+  // Admin-disabled template: skip + log every booking, mark them as reminded
+  // so we don't keep retrying. Mirrors the opt-out / per_booking_disabled path.
+  if (!template.enabled) {
+    for (const booking of bookings) {
+      await supabase.from('sms_log').insert({
+        booking_id: booking.id,
+        customer_id: booking.customer.id,
+        template_id: 'reminder_24h',
+        to_phone: booking.customer.phone_e164,
+        body: '',
+        provider: 'gatewayapi',
+        status: 'skipped',
+        error: 'template_disabled',
+      })
+      await supabase
+        .from('bookings')
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq('id', booking.id)
+      skippedCount++
+    }
+    return res.status(200).json({ sent: 0, skipped: skippedCount, total: bookings.length })
+  }
 
   for (const booking of bookings) {
     // Skip + log when either opt-out flag forbids sending. Mark
@@ -108,7 +123,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
     const startsAt = new Date(booking.starts_at)
 
-    const message = interpolateTemplate((template as { body_da: string }).body_da, {
+    const message = interpolateTemplate(template.body, {
       customer_name: booking.customer.full_name,
       barber_name: booking.barber.display_name,
       service: booking.service.name_da,
