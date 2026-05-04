@@ -20,7 +20,7 @@ export async function sendSms({ to, message }: SendSmsParams): Promise<SendSmsRe
     const response = await fetch('https://gatewayapi.com/rest/mtsms', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Token ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
