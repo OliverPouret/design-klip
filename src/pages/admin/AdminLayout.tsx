@@ -66,6 +66,11 @@ const ICON_LOGOUT = (
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 )
+const ICON_SMS = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+)
 const ICON_MENU = (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="3" y1="6" x2="21" y2="6" />
@@ -89,6 +94,7 @@ const NAV_ITEMS = [
   { path: '/admin/medarbejdere', label: 'Medarbejdere', icon: ICON_STAFF },
   { path: '/admin/ydelser', label: 'Ydelser', icon: ICON_SCISSORS },
   { path: '/admin/noter', label: 'Noter', icon: ICON_NOTES },
+  { path: '/admin/sms', label: 'SMS-skabeloner', icon: ICON_SMS },
 ]
 
 function getPageTitle(pathname: string): string {
@@ -102,6 +108,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/admin/ydelser')) return 'Ydelser'
   if (pathname.startsWith('/admin/booking/')) return 'Booking'
   if (pathname.startsWith('/admin/noter')) return 'Salonnoter'
+  if (pathname.startsWith('/admin/sms/')) return 'Rediger SMS-skabelon'
+  if (pathname.startsWith('/admin/sms')) return 'SMS-skabeloner'
   return 'Admin'
 }
 

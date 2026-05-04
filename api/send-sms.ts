@@ -1,10 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getSupabaseAdmin } from './_lib/supabase-admin.js'
 import { sendSms } from './_lib/sms.js'
-import { interpolateTemplate, formatDateDanish, formatTimeDanish } from './_lib/templates.js'
+import { getTemplate, interpolateTemplate, formatDateDanish, formatTimeDanish } from './_lib/templates.js'
 
 const VALID_TYPES = ['confirmation', 'cancellation_customer'] as const
 type SmsType = typeof VALID_TYPES[number]
+
+const TEMPLATE_ID_BY_TYPE: Record<SmsType, string> = {
+  confirmation: 'confirmation',
+  cancellation_customer: 'customer_cancelled',
+}
 
 interface ShopAddress {
   street?: string
@@ -38,13 +43,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const supabase = getSupabaseAdmin()
+  const templateId = TEMPLATE_ID_BY_TYPE[type as SmsType]
 
   // Rate limit: same SMS already sent for this booking?
   const { data: existingLog } = await supabase
     .from('sms_log')
     .select('id')
     .eq('booking_id', bookingId)
-    .eq('template_id', type)
+    .eq('template_id', templateId)
     .limit(1)
 
   if (existingLog && existingLog.length > 0) {
@@ -76,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await supabase.from('sms_log').insert({
       booking_id: booking.id,
       customer_id: booking.customer.id,
-      template_id: type,
+      template_id: templateId,
       to_phone: booking.customer.phone_e164,
       body: '',
       provider: 'gatewayapi',
@@ -98,15 +104,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ error: 'Rate limit exceeded' })
   }
 
-  // Fetch template
-  const { data: template } = await supabase
-    .from('sms_templates')
-    .select('body_da')
-    .eq('id', type)
-    .single()
+  // Fetch template (DB-first, with fallback constants for resilience)
+  const template = await getTemplate(templateId, supabase)
 
-  if (!template) {
-    return res.status(500).json({ error: 'Template not found' })
+  // Admin can disable a template via the editor — log + skip rather than send.
+  if (!template.enabled) {
+    await supabase.from('sms_log').insert({
+      booking_id: booking.id,
+      customer_id: booking.customer.id,
+      template_id: templateId,
+      to_phone: booking.customer.phone_e164,
+      body: '',
+      provider: 'gatewayapi',
+      status: 'skipped',
+      error: 'template_disabled',
+    })
+    return res.status(200).json({ ok: true, skipped: true, reason: 'template_disabled' })
   }
 
   // Fetch shop settings
@@ -126,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startsAt = new Date(booking.starts_at)
   const appUrl = process.env.VITE_APP_URL || 'https://design-klip.vercel.app'
 
-  const message = interpolateTemplate((template as { body_da: string }).body_da, {
+  const message = interpolateTemplate(template.body, {
     customer_name: booking.customer.full_name,
     barber_name: booking.barber.display_name,
     service: booking.service.name_da,
@@ -148,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Log
   await supabase.from('sms_log').insert({
     booking_id: bookingId,
-    template_id: type,
+    template_id: templateId,
     to_phone: booking.customer.phone_e164,
     body: message,
     provider: 'gatewayapi',
