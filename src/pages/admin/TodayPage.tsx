@@ -200,24 +200,52 @@ export function TodayPage() {
       {/* Booking list */}
       <div>
         <h2 className="text-sm font-medium text-gray-900 mb-3">Dagens bookinger</h2>
-        {active.length === 0 ? (
+        {bookings.length === 0 ? (
           <Card padding="sm">
             <p className="text-sm text-gray-500 italic">Ingen bookinger i dag.</p>
           </Card>
         ) : (
           <Card padding="none">
             <div className="divide-y divide-gray-100">
-              {active.map((b) => (
-                <div key={b.id} className="flex items-start gap-3 px-4 py-3">
-                  <span className="text-sm font-medium text-gray-900 w-12 flex-shrink-0 mt-0.5">
+              {bookings.map((b) => {
+                const isCancelled = b.status === 'cancelled'
+                return (
+                <div
+                  key={b.id}
+                  className="flex items-start gap-3 px-4 py-3"
+                  style={isCancelled ? { backgroundColor: '#F4F4F4', borderLeft: '3px solid #9A2A2A' } : undefined}
+                >
+                  <span
+                    className="text-sm font-medium w-12 flex-shrink-0 mt-0.5"
+                    style={isCancelled ? { color: '#9A8870' } : { color: '#111827' }}
+                  >
                     {fmtTime(b.starts_at)}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate">{b.customer.full_name}</p>
-                    <p className="text-xs text-gray-500 truncate">
+                    {isCancelled && (
+                      <p
+                        className="font-serif-sc text-[10px] tracking-[0.18em] uppercase mb-0.5"
+                        style={{ color: '#9A2A2A' }}
+                      >
+                        Aflyst
+                      </p>
+                    )}
+                    <p
+                      className={`text-sm truncate ${isCancelled ? 'line-through' : ''}`}
+                      style={isCancelled ? { color: '#9A8870' } : { color: '#111827' }}
+                    >
+                      {b.customer.full_name}
+                    </p>
+                    <p
+                      className="text-xs truncate"
+                      style={isCancelled ? { color: '#9A8870' } : { color: '#6B7280' }}
+                    >
                       {b.service.name_da} · {b.barber.display_name}
                     </p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                    <p
+                      className="text-xs truncate mt-0.5"
+                      style={isCancelled ? { color: '#9A8870' } : { color: '#6B7280' }}
+                    >
                       Note:{b.klipNote?.body ? ` ${b.klipNote.body}` : ''}
                     </p>
                   </div>
@@ -230,7 +258,8 @@ export function TodayPage() {
                     </span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </Card>
         )}

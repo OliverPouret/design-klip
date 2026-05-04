@@ -67,7 +67,7 @@ export function PrivacyPage() {
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Markedsføring via SMS</h2>
           <p>Design Klip sender ikke marketingmeddelelser, tilbud eller nyheder via SMS. Du modtager udelukkende:</p>
           <ol className="list-decimal pl-5 space-y-1">
-            <li>En bookingbekræftelse, når du booker en tid.</li>
+            <li>En bookingbekræftelse, når du booker en tid. Bekræftelsen indeholder et personligt link, du kan bruge til at afbestille din tid.</li>
             <li>En påmindelse ca. 24 timer før din tid.</li>
           </ol>
           <p>
