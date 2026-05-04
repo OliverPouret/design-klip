@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getSupabaseAdmin } from './_lib/supabase-admin.ts'
-import { sendSms } from './_lib/sms.ts'
-import { interpolateTemplate, formatDateDanish, formatTimeDanish } from './_lib/templates.ts'
+import { getSupabaseAdmin } from './_lib/supabase-admin.js'
+import { sendSms } from './_lib/sms.js'
+import { interpolateTemplate, formatDateDanish, formatTimeDanish } from './_lib/templates.js'
 
 const VALID_TYPES = ['confirmation', 'cancellation_customer'] as const
 type SmsType = typeof VALID_TYPES[number]
