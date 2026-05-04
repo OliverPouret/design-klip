@@ -164,7 +164,7 @@ export function CalendarPage() {
       `)
       .gte('starts_at', start.toISOString())
       .lt('starts_at', end.toISOString())
-      .in('status', ['confirmed', 'pending', 'completed', 'no_show'])
+      .in('status', ['confirmed', 'pending', 'completed', 'no_show', 'cancelled'])
       .order('starts_at')
 
     let bookingList = (data ?? []) as unknown as DayBooking[]

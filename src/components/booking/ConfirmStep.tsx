@@ -60,6 +60,25 @@ export function ConfirmStep({
     const shortCode = Array.isArray(data) ? data[0]?.short_code : data?.short_code
     const bookingIdForSms = Array.isArray(data) ? data[0]?.booking_id : data?.booking_id
 
+    // Persist or clear "Husk mig" preference on success. Wrapped in try/catch
+    // because Safari private mode throws when localStorage is unavailable.
+    try {
+      if (customer.remember) {
+        localStorage.setItem(
+          'designklip:remembered_customer',
+          JSON.stringify({
+            name: customer.fullName,
+            phone: customer.phone,
+            email: customer.email,
+          }),
+        )
+      } else {
+        localStorage.removeItem('designklip:remembered_customer')
+      }
+    } catch {
+      // Convenience feature only — silently ignore storage failures.
+    }
+
     if (shortCode) {
       // Fire-and-forget — booking is already confirmed, don't block on SMS delivery
       if (bookingIdForSms) {

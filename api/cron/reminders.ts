@@ -14,6 +14,7 @@ interface BookingJoined {
   short_code: string
   starts_at: string
   cancel_token: string
+  cancel_short_code: string
   reminder_sent_at: string | null
   send_sms: boolean
   customer: { id: string; phone_e164: string; full_name: string; sms_opt_out: boolean }
@@ -32,7 +33,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   const { data: bookingsRaw, error } = await supabase
     .from('bookings')
     .select(`
-      id, short_code, starts_at, cancel_token, reminder_sent_at, send_sms,
+      id, short_code, starts_at, cancel_token, cancel_short_code, reminder_sent_at, send_sms,
       customer:customers!inner(id, phone_e164, full_name, sms_opt_out),
       barber:barbers!inner(display_name),
       service:services!inner(name_da)
@@ -130,7 +131,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       date: formatDateDanish(startsAt),
       time: formatTimeDanish(startsAt),
       address: address,
-      cancel_link: `${appUrl}/afbestil/${booking.cancel_token}`,
+      cancel_link: `${appUrl}/a/${booking.cancel_short_code}`,
       rebook_link: `${appUrl}/bestil`,
       shop_name: (settings.shop_name as string) || 'Design Klip',
       shop_phone: (settings.shop_phone as string) || '+45 46 35 93 48',

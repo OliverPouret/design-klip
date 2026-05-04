@@ -45,7 +45,8 @@ export function TermsPage() {
 
           <h2 className="font-serif text-lg text-ink mt-8 mb-2">Afbestilling</h2>
           <p>
-            Du kan afbestille din tid ved at ringe til os på{' '}
+            Du kan afbestille din tid på to måder: via det personlige link i din SMS-bekræftelse,
+            eller ved at ringe til os på{' '}
             <a
               href="tel:+4546359348"
               className="text-accent-deep underline underline-offset-2 hover:text-ink"

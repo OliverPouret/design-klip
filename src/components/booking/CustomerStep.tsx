@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { BookingState } from '../../pages/BookingPage'
 import { formatDateLong, formatTime } from '../../lib/danishDates'
 import { formatDKK } from '../../types/database'
@@ -11,8 +11,30 @@ export interface CustomerInfo {
   phone: string
   email: string
   notes: string
+  remember: boolean
   // V2-PARKED: marketing SMS consent — see /agency/v2-roadmap/
   // marketingOptIn: boolean
+}
+
+// localStorage on the user's own device is "strictly necessary" GDPR-wise
+// because the user explicitly opted in via the checkbox. No cookie banner
+// required. Wrapped in try/catch — Safari private mode throws if disabled.
+const REMEMBER_KEY = 'designklip:remembered_customer'
+
+function readRemembered(): { name: string; phone: string; email: string } | null {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { name?: string; phone?: string; email?: string }
+    if (!parsed || typeof parsed !== 'object') return null
+    return {
+      name: parsed.name ?? '',
+      phone: parsed.phone ?? '',
+      email: parsed.email ?? '',
+    }
+  } catch {
+    return null
+  }
 }
 
 export function CustomerStep({
@@ -29,12 +51,26 @@ export function CustomerStep({
     phone: '',
     email: '',
     notes: '',
+    remember: false,
     // V2-PARKED: marketing SMS consent — see /agency/v2-roadmap/
     // marketingOptIn: false,
   })
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({})
   const [returningCustomer, setReturningCustomer] = useState(false)
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Prefill from localStorage if the user has previously opted in.
+  useEffect(() => {
+    const remembered = readRemembered()
+    if (!remembered) return
+    setForm((prev) => ({
+      ...prev,
+      fullName: prev.fullName || remembered.name,
+      phone: prev.phone || remembered.phone,
+      email: prev.email || remembered.email,
+      remember: true,
+    }))
+  }, [])
 
   const service = services.find((s) => s.slug === state.serviceSlug)
   const barber = state.anyBarber ? null : barbers.find((b) => b.slug === state.barberSlug)
@@ -77,6 +113,12 @@ export function CustomerStep({
     const cleaned = form.phone.replace(/\s|-/g, '')
     if (!cleaned || cleaned.replace(/^\+45/, '').length < 8)
       errs.phone = 'Skriv et gyldigt dansk mobilnummer'
+    const trimmedEmail = form.email.trim()
+    if (!trimmedEmail) {
+      errs.email = 'Indtast din email-adresse'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 200) {
+      errs.email = 'Indtast en gyldig email-adresse'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -152,18 +194,25 @@ export function CustomerStep({
           </p>
         </div>
 
-        {/* Email (optional) */}
+        {/* Email (required) */}
         <div>
           <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
-            E-mail <span className="text-ink-subtle font-normal normal-case">(valgfrit)</span>
+            E-mail <span className="text-accent">*</span>
           </label>
           <input
             type="email"
+            required
+            maxLength={200}
             value={form.email}
             onChange={(e) => set('email', e.target.value)}
             placeholder="anders@example.dk"
-            className="w-full border border-border rounded-sm px-4 py-3 text-sm text-ink placeholder:text-ink-subtle/60 outline-none focus:border-accent transition-colors"
+            className={`w-full border rounded-sm px-4 py-3 text-sm text-ink placeholder:text-ink-subtle/60 outline-none transition-colors ${
+              errors.email ? 'border-red-400' : 'border-border focus:border-accent'
+            }`}
           />
+          {errors.email && (
+            <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+          )}
         </div>
 
         {/* Notes (optional) */}
@@ -195,26 +244,54 @@ export function CustomerStep({
         */}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.remember}
+            onChange={(e) => setForm((prev) => ({ ...prev, remember: e.target.checked }))}
+            className="mt-1 w-4 h-4 accent-accent"
+          />
+          <span className="text-sm text-ink-muted leading-snug">
+            Husk navn, telefon og email på denne enhed til næste gang jeg booker her.
+          </span>
+        </label>
+
+        <div className="text-sm text-ink-muted space-y-2">
+          <p>
+            Ved at booke accepterer du vores{' '}
+            <a href="/privatlivspolitik" className="underline hover:text-accent">
+              privatlivspolitik
+            </a>{' '}
+            og{' '}
+            <a href="/handelsbetingelser" className="underline hover:text-accent">
+              handelsbetingelser
+            </a>
+            .
+          </p>
+          <p>Betaling sker i salonen ved fremmøde — vi tager imod kontant og MobilePay.</p>
+        </div>
+
         <button
           onClick={handleSubmit}
-          className="w-full py-4 bg-accent text-white text-sm font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors"
+          className="w-full inline-flex items-center justify-center gap-2 py-4 bg-accent text-white text-sm font-medium tracking-[0.08em] uppercase hover:bg-accent-deep transition-colors"
         >
-          Fortsæt
+          Bekræft booking
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </button>
       </div>
-
-      <p className="text-xs text-ink-subtle text-center mt-4 leading-relaxed">
-        Ved at fortsætte accepterer du vores{' '}
-        <a href="/handelsbetingelser" target="_blank" className="underline hover:text-ink">
-          handelsbetingelser
-        </a>{' '}
-        og{' '}
-        <a href="/privatlivspolitik" target="_blank" className="underline hover:text-ink">
-          privatlivspolitik
-        </a>
-        .
-      </p>
     </div>
   )
 }

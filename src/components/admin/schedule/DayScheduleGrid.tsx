@@ -184,10 +184,11 @@ export function DayScheduleGrid({
                     metaClass = 'text-red-500'
                     noteClass = 'text-red-400'
                   } else if (booking.status === 'cancelled') {
-                    blockClass = 'bg-gray-100 border-l-[3px] border-gray-200 line-through'
-                    nameClass = 'text-gray-400'
-                    metaClass = 'text-gray-400'
-                    noteClass = 'text-gray-400'
+                    blockClass = 'border-l-[3px]'
+                    blockStyle = { backgroundColor: '#F4F4F4', borderColor: '#9A2A2A' }
+                    nameClass = 'line-through'
+                    metaClass = ''
+                    noteClass = ''
                   } else if (isPastDue) {
                     blockClass = 'bg-amber-50 border-l-[3px] border-amber-500 animate-pulse-amber'
                     nameClass = 'text-gray-900'
@@ -208,7 +209,21 @@ export function DayScheduleGrid({
                       className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/40 transition-all text-left"
                       style={{ top: style.top, height: style.height, minHeight: '32px' }}
                     >
-                      <div className={`h-full px-2.5 py-1.5 ${blockClass}`} style={blockStyle}>
+                      <div
+                        className={`h-full px-2.5 py-1.5 ${blockClass}`}
+                        style={{
+                          ...blockStyle,
+                          ...(booking.status === 'cancelled' ? { color: '#9A8870' } : {}),
+                        }}
+                      >
+                        {booking.status === 'cancelled' && (
+                          <p
+                            className="font-serif-sc text-[10px] tracking-[0.18em] uppercase"
+                            style={{ color: '#9A2A2A' }}
+                          >
+                            Aflyst
+                          </p>
+                        )}
                         <div className="flex items-center gap-1.5">
                           <span className={`text-[12px] font-medium truncate ${nameClass}`}>
                             {booking.customer.full_name}

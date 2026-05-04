@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage'
 import { BookingPage } from './pages/BookingPage'
 import { ConfirmationPage } from './pages/ConfirmationPage'
 import { CancelPage } from './pages/CancelPage'
+import { CancelByShortCodePage } from './pages/CancelByShortCodePage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/bestil" element={<BookingPage />} />
           <Route path="/bestil/bekraeftet/:shortCode" element={<ConfirmationPage />} />
           <Route path="/afbestil/:token" element={<CancelPage />} />
+          <Route path="/a/:shortCode" element={<CancelByShortCodePage />} />
           <Route path="/privatlivspolitik" element={<PrivacyPage />} />
           <Route path="/handelsbetingelser" element={<TermsPage />} />
 
