@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 interface TemplateVars {
   customer_name: string
+  customer_first_name: string
   barber_name: string
   service: string
   date: string        // "torsdag d. 30. april"
@@ -15,13 +16,13 @@ interface TemplateVars {
 
 export const FALLBACK_TEMPLATES: Record<string, string> = {
   confirmation:
-    'Hej {customer_name}. Din tid hos {barber_name} ({service}) er bekræftet {date} {time}. Adresse: {address}. Afbestil: {cancel_link} – {shop_name}',
+    'Hej {customer_first_name}, din {service} hos {barber_name} er {date} {time}. {address}. Afbestil: {cancel_link}. Vi ses!',
   reminder_24h:
-    'Påmindelse: i morgen {time} hos {barber_name}, {shop_name}. {address}. Afbestil: {cancel_link}',
+    'Hej {customer_first_name}, husk din tid hos {barber_name} i morgen {time}. Afbestil: {cancel_link}. Vi ses!',
   customer_cancelled:
-    'Din tid {date} {time} hos {barber_name} er afbestilt. Velkommen tilbage. Bestil ny tid: {rebook_link} – {shop_name}',
+    'Hej {customer_first_name}, din tid {date} {time} er afbestilt. Velkommen tilbage. Book ny tid: {rebook_link}',
   shop_cancelled:
-    'Vi må desværre aflyse din tid {date} {time}. Vi beklager. Book ny tid uden ventetid: {rebook_link} – {shop_name}',
+    'Hej {customer_first_name}, vi må desværre aflyse din tid {date} {time}. Beklager besværet. Book ny tid: {rebook_link}',
 }
 
 export async function getTemplate(
