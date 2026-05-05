@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
@@ -186,6 +194,7 @@ export function SmsTemplateEditor() {
   const { role } = useAuth()
   const isSuperAdmin = role === 'super_admin'
 
+  const editorRef = useRef<PillEditorHandle | null>(null)
   const [template, setTemplate] = useState<SmsTemplate | null>(null)
   const [body, setBody] = useState('')
   const [enabled, setEnabled] = useState(true)
@@ -278,7 +287,7 @@ export function SmsTemplateEditor() {
   }
 
   const handleInsertVariable = (name: VariableName) => {
-    setBody((prev) => (prev.endsWith(' ') || prev.length === 0 ? `${prev}{${name}}` : `${prev} {${name}}`))
+    editorRef.current?.insertVariable(name)
   }
 
   const handleRestoreConfirm = () => {
@@ -350,6 +359,10 @@ export function SmsTemplateEditor() {
                     <button
                       key={v}
                       type="button"
+                      // Prevent the chip from stealing focus from the
+                      // contenteditable so the live cursor position survives
+                      // the click — that's what insertVariable reads from.
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleInsertVariable(v)}
                       className="inline-flex items-center text-[13px] font-medium px-3 py-1 rounded-full border bg-white"
                       style={{ borderColor: '#B08A3E', color: '#B08A3E' }}
@@ -368,7 +381,7 @@ export function SmsTemplateEditor() {
               </div>
             )}
 
-            <PillEditor body={body} onChange={setBody} disabled={!isSuperAdmin} />
+            <PillEditor ref={editorRef} body={body} onChange={setBody} disabled={!isSuperAdmin} />
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
               <span className="text-ink-muted">
@@ -545,6 +558,10 @@ interface PillEditorProps {
   disabled?: boolean
 }
 
+export interface PillEditorHandle {
+  insertVariable: (name: string) => void
+}
+
 interface Segment {
   type: 'text' | 'pill'
   value: string
@@ -589,7 +606,10 @@ function serializeNode(root: HTMLElement): string {
   return out
 }
 
-function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
+const PillEditor = forwardRef<PillEditorHandle, PillEditorProps>(function PillEditor(
+  { body, onChange, disabled = false },
+  externalRef,
+) {
   const ref = useRef<HTMLDivElement>(null)
   // We treat the contenteditable as uncontrolled: re-render its DOM only when
   // `body` changes from the outside (insert variable, restore default), not on
@@ -610,6 +630,60 @@ function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
     lastSerialized.current = body
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useImperativeHandle(externalRef, () => ({
+    insertVariable: (name: string) => {
+      const host = ref.current
+      if (!host || disabled) return
+
+      // Pick an insertion range. Prefer the live selection if it sits inside
+      // the editor; otherwise fall back to the end of the editor (this covers
+      // the "user has not yet clicked into the body" case).
+      const sel = window.getSelection()
+      let range: Range | null = null
+      if (sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0)
+        if (host.contains(r.startContainer)) {
+          range = r
+        }
+      }
+
+      const pill = createPill(name)
+      if (range) {
+        range.deleteContents()
+        range.insertNode(pill)
+      } else {
+        host.appendChild(pill)
+      }
+
+      // Ensure there is a text node after the pill so the cursor can land
+      // outside it; without this the caret can get stuck inside an adjacent
+      // contenteditable=false span on some browsers.
+      const trailing = pill.nextSibling
+      let textNode: Text
+      if (trailing && trailing.nodeType === Node.TEXT_NODE) {
+        textNode = trailing as Text
+      } else {
+        textNode = document.createTextNode('')
+        pill.parentNode?.insertBefore(textNode, pill.nextSibling)
+      }
+
+      host.focus()
+      const newRange = document.createRange()
+      newRange.setStart(textNode, 0)
+      newRange.setEnd(textNode, 0)
+      const newSel = window.getSelection()
+      newSel?.removeAllRanges()
+      newSel?.addRange(newRange)
+
+      // Sync state. Setting lastSerialized first means the body-change effect
+      // above will short-circuit and not re-render the DOM (which would reset
+      // the cursor we just placed).
+      const next = serializeNode(host)
+      lastSerialized.current = next
+      onChange(next)
+    },
+  }))
 
   const handleInput = () => {
     if (!ref.current) return
@@ -682,11 +756,31 @@ function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
       suppressContentEditableWarning
       onInput={handleInput}
       onKeyDown={handleKeyDown}
-      className="min-h-[120px] w-full rounded-lg border border-border bg-white px-4 py-3 text-[14px] leading-relaxed text-ink focus:outline-none focus:border-accent whitespace-pre-wrap break-words"
+      className="min-h-[120px] w-full rounded-lg border border-border bg-white px-4 py-3 text-[14px] leading-relaxed text-ink focus:outline-none focus:border-accent whitespace-pre-wrap break-words font-sans"
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
       aria-label="SMS-skabelon tekstfelt"
     />
   )
+})
+
+function createPill(name: string): HTMLSpanElement {
+  const pill = document.createElement('span')
+  pill.dataset.pill = name
+  pill.contentEditable = 'false'
+  pill.textContent = name
+  pill.setAttribute('data-pill', name)
+  pill.style.display = 'inline-block'
+  pill.style.padding = '2px 8px'
+  pill.style.margin = '0 2px'
+  pill.style.borderRadius = '9999px'
+  pill.style.border = '1px solid #B08A3E'
+  pill.style.color = '#B08A3E'
+  pill.style.background = '#FFFFFF'
+  pill.style.fontFamily = 'Inter, system-ui, sans-serif'
+  pill.style.fontWeight = '500'
+  pill.style.fontSize = '13px'
+  pill.style.userSelect = 'none'
+  return pill
 }
 
 function renderInto(host: HTMLElement, body: string) {
@@ -698,23 +792,7 @@ function renderInto(host: HTMLElement, body: string) {
     if (seg.type === 'text') {
       host.appendChild(document.createTextNode(seg.value))
     } else {
-      const pill = document.createElement('span')
-      pill.dataset.pill = seg.value
-      pill.contentEditable = 'false'
-      pill.textContent = seg.value
-      pill.setAttribute('data-pill', seg.value)
-      pill.style.display = 'inline-block'
-      pill.style.padding = '2px 8px'
-      pill.style.margin = '0 2px'
-      pill.style.borderRadius = '9999px'
-      pill.style.border = '1px solid #B08A3E'
-      pill.style.color = '#B08A3E'
-      pill.style.background = '#FFFFFF'
-      pill.style.fontFamily = 'Inter, system-ui, sans-serif'
-      pill.style.fontWeight = '500'
-      pill.style.fontSize = '13px'
-      pill.style.userSelect = 'none'
-      host.appendChild(pill)
+      host.appendChild(createPill(seg.value))
     }
   }
   // Trailing text node ensures cursor can be placed after the last pill.
