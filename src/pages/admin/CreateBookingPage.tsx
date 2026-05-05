@@ -55,6 +55,7 @@ export function CreateBookingPage() {
   const [serviceId, setServiceId] = useState<string | null>(null)
   const [eligibleBarberIds, setEligibleBarberIds] = useState<Set<string> | null>(null)
   const [barberId, setBarberId] = useState<string | null>(null)
+  const [todayCounts, setTodayCounts] = useState<Record<string, number>>({})
   const [barberWorkdays, setBarberWorkdays] = useState<number[] | null>(null)
   const [barberTimeOff, setBarberTimeOff] = useState<{ starts_at: string; ends_at: string }[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -78,6 +79,26 @@ export function CreateBookingPage() {
     const d = new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
+
+  // Fetch today's booking counts per barber once on mount. Used to render
+  // "(N bookinger i dag)" next to each barber chip so Hamada sees the load
+  // distribution at a glance before assigning.
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .rpc('get_barber_booking_counts_today')
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const map: Record<string, number> = {}
+        ;(data as { barber_id: string; count_today: number }[]).forEach((r) => {
+          map[r.barber_id] = r.count_today
+        })
+        setTodayCounts(map)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Fetch eligible barbers whenever the service changes
   useEffect(() => {
@@ -538,15 +559,29 @@ export function CreateBookingPage() {
                 </button>
                 {barbers
                   .filter((b) => !eligibleBarberIds || eligibleBarberIds.has(b.id))
-                  .map((b) => (
-                    <button
-                      key={b.id}
-                      onClick={() => handleBarberSelect(b.id)}
-                      className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
-                    >
-                      {b.display_name}
-                    </button>
-                  ))}
+                  .map((b) => {
+                    const count = todayCounts[b.id] ?? 0
+                    const countLabel = count === 1 ? '1 booking' : `${count} bookinger`
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => handleBarberSelect(b.id)}
+                        className={`${SELECT_BTN} ${barberId === b.id ? SELECT_ACTIVE : SELECT_DEFAULT}`}
+                      >
+                        {b.display_name}{' '}
+                        <span
+                          style={{
+                            color: '#9A8870',
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            fontWeight: 400,
+                            fontSize: '12px',
+                          }}
+                        >
+                          ({countLabel} i dag)
+                        </span>
+                      </button>
+                    )
+                  })}
                 {serviceId && eligibleBarberIds && eligibleBarberIds.size === 0 && (
                   <p className="col-span-2 text-xs text-[#9B2C2C] mt-1">
                     Ingen frisører kan udføre denne ydelse.

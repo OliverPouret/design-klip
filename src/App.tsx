@@ -11,6 +11,7 @@ import { TermsPage } from './pages/TermsPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { LoginPage } from './pages/admin/LoginPage'
 import { TodayPage } from './pages/admin/TodayPage'
+import { HistorikPage } from './pages/admin/HistorikPage'
 import { CalendarPage } from './pages/admin/CalendarPage'
 import { InsightsPage } from './pages/admin/InsightsPage'
 import { CreateBookingPage } from './pages/admin/CreateBookingPage'
@@ -43,6 +44,7 @@ export default function App() {
             <Route index element={<TodayPage />} />
             <Route path="i-dag" element={<TodayPage />} />
             <Route path="kalender" element={<CalendarPage />} />
+            <Route path="historik" element={<HistorikPage />} />
             <Route path="overblik" element={<InsightsPage />} />
             <Route path="oekonomi" element={<Navigate to="/admin/overblik" replace />} />
             <Route path="opret-booking" element={<CreateBookingPage />} />

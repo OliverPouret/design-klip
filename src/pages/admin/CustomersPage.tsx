@@ -22,6 +22,7 @@ interface CustomerDetail {
   notes_summary: string | null
   created_at: string
   sms_opt_out: boolean
+  no_show_count: number
 }
 
 interface BookingHistory {
@@ -97,7 +98,7 @@ export function CustomersPage() {
     const fetchDetail = async () => {
       const { data: cust } = await supabase
         .from('customers')
-        .select('id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at, sms_opt_out')
+        .select('id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at, sms_opt_out, no_show_count')
         .eq('id', selectedId)
         .single()
       if (cust) setDetail(cust as CustomerDetail)
@@ -391,7 +392,10 @@ export function CustomersPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900">{detail.full_name}</h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg font-medium text-gray-900">{detail.full_name}</h2>
+                      <NoShowPill count={detail.no_show_count} />
+                    </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       <a href={`tel:${detail.phone_e164}`} className="text-[#B08A3E]">
                         {detail.phone_e164}
@@ -624,5 +628,26 @@ export function CustomersPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Visual escalation pill for repeat no-shows. Stays out of view at 0,
+// nudges grey at 1, warns yellow at 2, escalates red at 3+.
+function NoShowPill({ count }: { count: number }) {
+  if (!count || count <= 0) return null
+  const label = count === 1 ? '1 udeblivelse' : `${count} udeblivelser`
+  const palette =
+    count >= 3
+      ? { bg: '#EFD8D2', color: '#9A2A2A' }
+      : count === 2
+        ? { bg: '#F1E2C2', color: '#B8761F' }
+        : { bg: '#F4F4F4', color: '#6B5B45' }
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: palette.bg, color: palette.color }}
+    >
+      {label}
+    </span>
   )
 }

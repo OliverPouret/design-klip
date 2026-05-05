@@ -125,10 +125,24 @@ export function DateTimeStep({
 
   const canGoBack = viewMonth > new Date(today.getFullYear(), today.getMonth(), 1)
 
-  const handleSlotPick = (slot: Slot) => {
-    const resolvedBarberId = state.anyBarber
-      ? slot.available_barber_ids[0]
-      : barber?.id
+  const handleSlotPick = async (slot: Slot) => {
+    let resolvedBarberId: string | undefined | null
+    if (state.anyBarber) {
+      // Server picks the least-loaded eligible barber from the slot's
+      // candidate set (orders by today's load, then all-time, then
+      // display_order, then alphabetical). Falls back to the first
+      // candidate if the RPC fails so the booking flow never dead-ends.
+      const { data, error } = await supabase.rpc('pick_least_loaded_barber', {
+        p_candidate_ids: slot.available_barber_ids,
+      })
+      if (error || !data) {
+        resolvedBarberId = slot.available_barber_ids[0]
+      } else {
+        resolvedBarberId = data as string
+      }
+    } else {
+      resolvedBarberId = barber?.id
+    }
     if (!resolvedBarberId) return
     onSelect(slot.slot_starts_at, resolvedBarberId)
   }
