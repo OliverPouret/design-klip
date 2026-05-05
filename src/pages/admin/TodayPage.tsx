@@ -143,6 +143,7 @@ export function TodayPage() {
   // const onlineCount = active.filter((b) => b.source === 'web').length
   // const phoneCount = active.filter((b) => b.source === 'phone').length
   const noShowCount = bookings.filter((b) => b.status === 'no_show').length
+  const cancelledCount = bookings.filter((b) => b.status === 'cancelled').length
 
   // Per-barber stats
   // V1: removed — first/last booking time + utilization progress bar
@@ -167,7 +168,7 @@ export function TodayPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Card padding="sm">
           <p className="text-[26px] font-semibold text-gray-900 leading-none">{totalBookings}</p>
           <p className="text-xs text-gray-500 mt-1">bookinger i dag</p>
@@ -176,6 +177,10 @@ export function TodayPage() {
         <Card padding="sm">
           <p className="text-[26px] font-semibold text-gray-900 leading-none">{noShowCount}</p>
           <p className="text-xs text-gray-500 mt-1">udeblivelser</p>
+        </Card>
+        <Card padding="sm">
+          <p className="text-[26px] font-semibold text-gray-900 leading-none">{cancelledCount}</p>
+          <p className="text-xs text-gray-500 mt-1">afbestillinger</p>
         </Card>
       </div>
 
