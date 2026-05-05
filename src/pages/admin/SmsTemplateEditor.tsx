@@ -8,13 +8,13 @@ import { useAuth } from '../../lib/auth'
 // what's currently in the DB.
 const FALLBACK_TEMPLATES: Record<string, string> = {
   confirmation:
-    'Hej {customer_name}. Din tid hos {barber_name} ({service}) er bekræftet {date} {time}. Adresse: {address}. Afbestil: {cancel_link} – {shop_name}',
+    'Hej {customer_first_name}, din {service} hos {barber_name} er {date} {time}. {address}. Afbestil: {cancel_link}. Vi ses!',
   reminder_24h:
-    'Påmindelse: i morgen {time} hos {barber_name}, {shop_name}. {address}. Afbestil: {cancel_link}',
+    'Hej {customer_first_name}, husk din tid hos {barber_name} i morgen {time}. Afbestil: {cancel_link}. Vi ses!',
   customer_cancelled:
-    'Din tid {date} {time} hos {barber_name} er afbestilt. Velkommen tilbage. Bestil ny tid: {rebook_link} – {shop_name}',
+    'Hej {customer_first_name}, din tid {date} {time} er afbestilt. Velkommen tilbage. Book ny tid: {rebook_link}',
   shop_cancelled:
-    'Vi må desværre aflyse din tid {date} {time}. Vi beklager. Book ny tid uden ventetid: {rebook_link} – {shop_name}',
+    'Hej {customer_first_name}, vi må desværre aflyse din tid {date} {time}. Beklager besværet. Book ny tid: {rebook_link}',
 }
 
 const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
@@ -25,6 +25,7 @@ const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
 }
 
 const ALL_VARIABLES = [
+  'customer_first_name',
   'customer_name',
   'barber_name',
   'service',
@@ -40,21 +41,48 @@ const ALL_VARIABLES = [
 type VariableName = (typeof ALL_VARIABLES)[number]
 
 const VARIABLES_BY_TEMPLATE: Record<string, readonly VariableName[]> = {
-  confirmation: ['customer_name', 'barber_name', 'service', 'date', 'time', 'address', 'cancel_link', 'shop_name', 'shop_phone'],
-  reminder_24h: ['customer_name', 'barber_name', 'service', 'date', 'time', 'address', 'cancel_link', 'shop_name', 'shop_phone'],
-  customer_cancelled: ['customer_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
-  shop_cancelled: ['customer_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
+  confirmation: ['customer_name', 'customer_first_name', 'barber_name', 'service', 'date', 'time', 'address', 'cancel_link', 'shop_name', 'shop_phone'],
+  reminder_24h: ['customer_name', 'customer_first_name', 'barber_name', 'service', 'date', 'time', 'address', 'cancel_link', 'shop_name', 'shop_phone'],
+  customer_cancelled: ['customer_name', 'customer_first_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
+  shop_cancelled: ['customer_name', 'customer_first_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
 }
 
-const REQUIRED_VARIABLES: Record<string, readonly VariableName[]> = {
-  confirmation: ['customer_name', 'barber_name', 'date', 'time', 'cancel_link'],
-  reminder_24h: ['time', 'barber_name', 'cancel_link'],
-  customer_cancelled: ['date', 'time', 'rebook_link'],
-  shop_cancelled: ['date', 'time', 'rebook_link'],
+// Each template requires a list of "groups". A group is satisfied when at
+// least one of its variables is present in the body. Single-element groups
+// behave like a plain mandatory variable; multi-element groups model
+// "either {customer_first_name} or {customer_name} is acceptable".
+const REQUIRED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> = {
+  confirmation: [
+    ['customer_first_name', 'customer_name'],
+    ['barber_name'],
+    ['date'],
+    ['time'],
+    ['cancel_link'],
+  ],
+  reminder_24h: [
+    ['customer_first_name', 'customer_name'],
+    ['time'],
+    ['barber_name'],
+    ['cancel_link'],
+  ],
+  customer_cancelled: [
+    ['customer_first_name', 'customer_name'],
+    ['date'],
+    ['time'],
+    ['rebook_link'],
+  ],
+  shop_cancelled: [
+    ['customer_first_name', 'customer_name'],
+    ['date'],
+    ['time'],
+    ['rebook_link'],
+  ],
 }
 
 const VARIABLE_HELP: Record<VariableName, string> = {
   customer_name: "Kundens navn, fx 'Mette Jensen'",
+  customer_first_name:
+    "Kundens fornavn (alt før første mellemrum), fx 'Oliver' fra 'Oliver Pouret'. Bruges for en mere personlig hilsen.",
   barber_name: "Barberens navn, fx 'Hamada'",
   service: "Den valgte ydelse, fx 'Herreklip'",
   date: "Datoen for tiden, fx 'tirsdag d. 5. maj' (formatet sættes automatisk)",
@@ -84,6 +112,7 @@ function formatTimeDanish(d: Date): string {
 
 const SAMPLE_VARS: Record<VariableName, string> = {
   customer_name: 'Mette Jensen',
+  customer_first_name: 'Mette',
   barber_name: 'Hamada',
   service: 'Herreklip',
   date: formatDateDanish(SAMPLE_DATE),
@@ -187,7 +216,7 @@ export function SmsTemplateEditor() {
     () => (id ? (VARIABLES_BY_TEMPLATE[id] ?? []) : []),
     [id],
   )
-  const required = useMemo<readonly VariableName[]>(
+  const required = useMemo<readonly (readonly VariableName[])[]>(
     () => (id ? (REQUIRED_VARIABLES[id] ?? []) : []),
     [id],
   )
@@ -196,8 +225,9 @@ export function SmsTemplateEditor() {
     () => allowed.filter((v) => !present.has(v)),
     [allowed, present],
   )
+  // A group is satisfied if any of its alternatives is in the body.
   const missingRequired = useMemo(
-    () => required.filter((v) => !present.has(v)),
+    () => required.filter((group) => !group.some((v) => present.has(v))),
     [required, present],
   )
 
@@ -335,7 +365,14 @@ export function SmsTemplateEditor() {
             {missingRequired.length > 0 && (
               <p className="text-[13px] text-error">
                 Skabelonen mangler påkrævede variabler:{' '}
-                {missingRequired.map((v) => `{${v}}`).join(', ')}.
+                {missingRequired
+                  .map((group) =>
+                    group.length === 1
+                      ? `{${group[0]}}`
+                      : `en af ${group.map((v) => `{${v}}`).join('/')}`,
+                  )
+                  .join(', ')}
+                .
               </p>
             )}
 

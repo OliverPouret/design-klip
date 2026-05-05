@@ -124,8 +124,13 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
     const startsAt = new Date(booking.starts_at)
 
+    const customerName = booking.customer.full_name
+    const customer_first_name =
+      (customerName ?? '').trim().split(' ')[0] || customerName || 'kunde'
+
     const message = interpolateTemplate(template.body, {
-      customer_name: booking.customer.full_name,
+      customer_name: customerName,
+      customer_first_name,
       barber_name: booking.barber.display_name,
       service: booking.service.name_da,
       date: formatDateDanish(startsAt),
