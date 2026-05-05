@@ -47,11 +47,12 @@ const VARIABLES_BY_TEMPLATE: Record<string, readonly VariableName[]> = {
   shop_cancelled: ['customer_name', 'customer_first_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
 }
 
-// Each template requires a list of "groups". A group is satisfied when at
-// least one of its variables is present in the body. Single-element groups
-// behave like a plain mandatory variable; multi-element groups model
-// "either {customer_first_name} or {customer_name} is acceptable".
-const REQUIRED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> = {
+// Per-template "recommended" variable groups. A group is satisfied when at
+// least one of its variables appears in the body. Multi-element groups model
+// "either {customer_first_name} or {customer_name} is acceptable". Missing
+// groups produce a yellow warning but never block save — the shop owner
+// retains full template control.
+const RECOMMENDED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> = {
   confirmation: [
     ['customer_first_name', 'customer_name'],
     ['barber_name'],
@@ -77,6 +78,23 @@ const REQUIRED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> =
     ['time'],
     ['rebook_link'],
   ],
+}
+
+// Short Danish "why this is recommended" line per variable. Used for the
+// yellow warning shown when a recommended variable is missing.
+const RECOMMENDED_REASONS: Record<VariableName, string> = {
+  customer_first_name: "Et navn gør beskeden personlig. Uden navn ligner SMS'en spam.",
+  customer_name: "Et navn gør beskeden personlig. Uden navn ligner SMS'en spam.",
+  barber_name: 'Kunden ved ikke hvilken frisør tiden er hos.',
+  service: 'Kunden ved ikke hvilken behandling de har booket.',
+  date: "Kunden ved ikke hvilken dag tiden er. SMS'en bliver ubrugelig.",
+  time: "Kunden ved ikke hvornår tiden er. SMS'en bliver ubrugelig.",
+  address: 'Kunden ved ikke hvor de skal hen.',
+  cancel_link:
+    'Kunden kan kun aflyse ved at ringe. Det kan øge antallet af no-shows hvis kunden glemmer.',
+  rebook_link: 'Kunden kan ikke nemt booke en ny tid efter aflysning.',
+  shop_name: 'Beskeden mangler afsenderkontekst.',
+  shop_phone: "Kunden har ingen kontaktinfo i SMS'en.",
 }
 
 const VARIABLE_HELP: Record<VariableName, string> = {
@@ -216,8 +234,8 @@ export function SmsTemplateEditor() {
     () => (id ? (VARIABLES_BY_TEMPLATE[id] ?? []) : []),
     [id],
   )
-  const required = useMemo<readonly (readonly VariableName[])[]>(
-    () => (id ? (REQUIRED_VARIABLES[id] ?? []) : []),
+  const recommended = useMemo<readonly (readonly VariableName[])[]>(
+    () => (id ? (RECOMMENDED_VARIABLES[id] ?? []) : []),
     [id],
   )
   const present = useMemo(() => extractVariables(body), [body])
@@ -225,17 +243,18 @@ export function SmsTemplateEditor() {
     () => allowed.filter((v) => !present.has(v)),
     [allowed, present],
   )
-  // A group is satisfied if any of its alternatives is in the body.
-  const missingRequired = useMemo(
-    () => required.filter((group) => !group.some((v) => present.has(v))),
-    [required, present],
+  // A recommended group is satisfied if any of its alternatives is in the
+  // body. Missing groups surface as a yellow warning — they NEVER block save.
+  const missingRecommended = useMemo(
+    () => recommended.filter((group) => !group.some((v) => present.has(v))),
+    [recommended, present],
   )
 
   const { chars, segments, isUcs2 } = useMemo(() => countSegments(body), [body])
   const previewBody = useMemo(() => interpolate(body), [body])
 
   const isDirty = body !== originalBody || enabled !== originalEnabled
-  const canSave = isSuperAdmin && isDirty && missingRequired.length === 0 && !saving
+  const canSave = isSuperAdmin && isDirty && !saving
 
   if (!id) return null
 
@@ -362,18 +381,44 @@ export function SmsTemplateEditor() {
               )}
             </div>
 
-            {missingRequired.length > 0 && (
-              <p className="text-[13px] text-error">
-                Skabelonen mangler påkrævede variabler:{' '}
-                {missingRequired
-                  .map((group) =>
-                    group.length === 1
-                      ? `{${group[0]}}`
-                      : `en af ${group.map((v) => `{${v}}`).join('/')}`,
-                  )
-                  .join(', ')}
-                .
-              </p>
+            {missingRecommended.length > 0 && (
+              <div
+                role="alert"
+                className="flex gap-2 border-l-4 border-warning bg-warning-bg p-3 rounded-r-lg"
+              >
+                <svg
+                  className="shrink-0 mt-0.5"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#B8761F"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+                <div className="text-[13px] leading-relaxed" style={{ color: '#B8761F' }}>
+                  <p className="font-semibold mb-1">Anbefalede variabler mangler</p>
+                  <ul className="space-y-1">
+                    {missingRecommended.map((group, i) => {
+                      const label =
+                        group.length === 1
+                          ? `{${group[0]}}`
+                          : group.map((v) => `{${v}}`).join(' eller ')
+                      return (
+                        <li key={i}>
+                          • {label} — {RECOMMENDED_REASONS[group[0]]}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
             )}
 
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
@@ -415,11 +460,9 @@ export function SmsTemplateEditor() {
               title={
                 !isSuperAdmin
                   ? 'Kun super admin kan redigere SMS-skabeloner.'
-                  : missingRequired.length > 0
-                    ? 'Tilføj de påkrævede variabler først.'
-                    : !isDirty
-                      ? 'Ingen ændringer at gemme.'
-                      : ''
+                  : !isDirty
+                    ? 'Ingen ændringer at gemme.'
+                    : ''
               }
               className="rounded-full bg-accent text-white px-6 py-3 text-[14px] font-semibold hover:bg-accent-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
