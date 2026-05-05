@@ -68,6 +68,7 @@ export function TodayPage() {
           `)
           .gte('starts_at', dayStart.toISOString())
           .lt('starts_at', dayEnd.toISOString())
+          .eq('dismissed_from_calendar', false)
           .order('starts_at'),
         supabase.from('barber_hours').select('barber_id, opens_at, closes_at').eq('isoweekday', wd),
         supabase

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
-import { CancellationBanner } from '../../components/admin/CancellationBanner'
+import { NotificationBell } from '../../components/admin/NotificationBell'
 
 const ICON_SCHEDULE = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -223,14 +223,14 @@ export function AdminLayout() {
       <main className="flex-1 flex flex-col md:h-screen md:overflow-hidden">
         {/* Page title bar */}
         <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="" className="w-7 h-7" />
-            <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img src="/logo.png" alt="" className="w-7 h-7" />
+              <h1 className="text-base font-medium text-gray-900 truncate">{pageTitle}</h1>
+            </div>
+            <NotificationBell />
           </div>
         </div>
-
-        {/* Cancellation notification banner — last 24h, dismissible */}
-        <CancellationBanner />
 
         {/* Content area — fixed frame on desktop; pages handle their own internal scroll */}
         <div className="flex-1 p-4 md:p-6 md:overflow-hidden md:flex md:flex-col md:min-h-0">

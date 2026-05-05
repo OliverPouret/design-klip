@@ -83,13 +83,17 @@ export function DayScheduleGrid({
     timeLabels.push(`${h}:${min}`)
   }
 
-  const getBlockStyle = (b: ScheduleBooking) => {
+  const getBlockGeometry = (b: ScheduleBooking) => {
     const bStart = new Date(b.starts_at)
     const bookingMinutes = bStart.getHours() * 60 + bStart.getMinutes()
     const offset = bookingMinutes - startMinutes
     const top = (offset / 30) * slotHeight
-    const height = (b.duration_minutes / 30) * slotHeight
-    return { top: `${top}px`, height: `${height}px` }
+    const naturalHeight = (b.duration_minutes / 30) * slotHeight
+    // Cancelled bookings collapse to a one-line strip pinned to the top of
+    // the original slot so the rest of the time reads as "free".
+    const isCancelled = b.status === 'cancelled'
+    const height = isCancelled ? Math.min(naturalHeight, 28) : naturalHeight
+    return { top, height, naturalHeight, isCancelled }
   }
 
   void isoWd // referenced indirectly via barberHours map; suppress unused
@@ -162,10 +166,43 @@ export function DayScheduleGrid({
               ))}
               {!isOff &&
                 barberBookings.map((booking) => {
-                  const style = getBlockStyle(booking)
+                  const geom = getBlockGeometry(booking)
                   const isPastDue =
                     new Date(booking.ends_at).getTime() < Date.now() &&
                     (booking.status === 'confirmed' || booking.status === 'pending')
+
+                  // Cancelled bookings always render as a compact one-liner
+                  // (AFLYST eyebrow + customer name, line-through). All other
+                  // info is intentionally hidden — the row only exists so the
+                  // shop can reopen the modal and dismiss it.
+                  if (geom.isCancelled) {
+                    return (
+                      <button
+                        key={booking.id}
+                        onClick={() => onBookingClick(booking)}
+                        className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/40 transition-all text-left"
+                        style={{ top: `${geom.top}px`, height: `${geom.height}px` }}
+                      >
+                        <div
+                          className="h-full px-2.5 py-0.5 border-l-[3px] flex items-center gap-2"
+                          style={{ backgroundColor: '#F4F4F4', borderColor: '#9A2A2A' }}
+                        >
+                          <span
+                            className="font-serif-sc text-[9px] tracking-[0.18em] uppercase font-semibold flex-shrink-0"
+                            style={{ color: '#9A2A2A' }}
+                          >
+                            Aflyst
+                          </span>
+                          <span
+                            className="text-[13px] font-medium line-through truncate"
+                            style={{ color: '#9A8870' }}
+                          >
+                            {booking.customer.full_name}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  }
 
                   let blockClass: string
                   let blockStyle: CSSProperties = {}
@@ -183,12 +220,6 @@ export function DayScheduleGrid({
                     nameClass = 'text-red-700'
                     metaClass = 'text-red-500'
                     noteClass = 'text-red-400'
-                  } else if (booking.status === 'cancelled') {
-                    blockClass = 'border-l-[3px]'
-                    blockStyle = { backgroundColor: '#F4F4F4', borderColor: '#9A2A2A' }
-                    nameClass = 'line-through'
-                    metaClass = ''
-                    noteClass = ''
                   } else if (isPastDue) {
                     blockClass = 'bg-amber-50 border-l-[3px] border-amber-500 animate-pulse-amber'
                     nameClass = 'text-gray-900'
@@ -202,40 +233,39 @@ export function DayScheduleGrid({
                     }
                   }
 
+                  // Compactness levels for short bookings: under 32px shows
+                  // only the customer name; under 50px adds service; 50px+
+                  // gets the full layout including the klip note row.
+                  const compact = geom.naturalHeight < 32
+                  const medium = !compact && geom.naturalHeight < 50
+
                   return (
                     <button
                       key={booking.id}
                       onClick={() => onBookingClick(booking)}
                       className="absolute left-1.5 right-1.5 rounded-lg overflow-hidden hover:ring-2 hover:ring-[#B08A3E]/40 transition-all text-left"
-                      style={{ top: style.top, height: style.height, minHeight: '32px' }}
+                      style={{ top: `${geom.top}px`, height: `${geom.height}px`, minHeight: '32px' }}
                     >
                       <div
-                        className={`h-full px-2.5 py-1.5 ${blockClass}`}
-                        style={{
-                          ...blockStyle,
-                          ...(booking.status === 'cancelled' ? { color: '#9A8870' } : {}),
-                        }}
+                        className={`h-full ${compact ? 'px-2.5 py-0.5' : 'px-2.5 py-1.5'} ${blockClass}`}
+                        style={blockStyle}
                       >
-                        {booking.status === 'cancelled' && (
-                          <p
-                            className="font-serif-sc text-[10px] tracking-[0.18em] uppercase"
-                            style={{ color: '#9A2A2A' }}
-                          >
-                            Aflyst
-                          </p>
-                        )}
                         <div className="flex items-center gap-1.5">
                           <span className={`text-[12px] font-medium truncate ${nameClass}`}>
                             {booking.customer.full_name}
                           </span>
                         </div>
-                        <p className={`text-[11px] truncate mt-0.5 ${metaClass}`}>
-                          {booking.service.name_da}
-                          {booking.source === 'phone' && ' · 📞'}
-                        </p>
-                        <p className={`text-[11px] truncate mt-0.5 ${noteClass}`}>
-                          Note:{booking.klipNote?.body ? ` ${booking.klipNote.body}` : ''}
-                        </p>
+                        {!compact && (
+                          <p className={`text-[11px] truncate mt-0.5 ${metaClass}`}>
+                            {booking.service.name_da}
+                            {booking.source === 'phone' && ' · 📞'}
+                          </p>
+                        )}
+                        {!compact && !medium && (
+                          <p className={`text-[11px] truncate mt-0.5 ${noteClass}`}>
+                            Note:{booking.klipNote?.body ? ` ${booking.klipNote.body}` : ''}
+                          </p>
+                        )}
                       </div>
                     </button>
                   )

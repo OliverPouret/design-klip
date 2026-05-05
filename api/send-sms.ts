@@ -3,13 +3,22 @@ import { getSupabaseAdmin } from './_lib/supabase-admin.js'
 import { sendSms } from './_lib/sms.js'
 import { getTemplate, interpolateTemplate, formatDateDanish, formatTimeDanish } from './_lib/templates.js'
 
-const VALID_TYPES = ['confirmation', 'cancellation_customer'] as const
+const VALID_TYPES = ['confirmation', 'cancellation_customer', 'cancellation_shop'] as const
 type SmsType = typeof VALID_TYPES[number]
 
 const TEMPLATE_ID_BY_TYPE: Record<SmsType, string> = {
   confirmation: 'confirmation',
   cancellation_customer: 'customer_cancelled',
+  cancellation_shop: 'shop_cancelled',
 }
+
+// Cancellation templates are explicitly meant to be sent on cancelled
+// bookings; everything else (confirmations, future reminder types) must
+// noop if the booking has been cancelled in the meantime.
+const CANCELLATION_TYPES: ReadonlySet<SmsType> = new Set([
+  'cancellation_customer',
+  'cancellation_shop',
+])
 
 interface ShopAddress {
   street?: string
@@ -21,6 +30,7 @@ interface BookingJoined {
   id: string
   short_code: string
   starts_at: string
+  status: string
   cancel_token: string
   cancel_short_code: string
   send_sms: boolean
@@ -62,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: bookingRaw, error: bookingError } = await supabase
     .from('bookings')
     .select(`
-      id, short_code, starts_at, cancel_token, cancel_short_code, send_sms,
+      id, short_code, starts_at, status, cancel_token, cancel_short_code, send_sms,
       customer:customers!inner(id, phone_e164, full_name, sms_opt_out),
       barber:barbers!inner(display_name),
       service:services!inner(name_da)
@@ -75,6 +85,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const booking = bookingRaw as unknown as BookingJoined
+
+  // Skip if the booking has already been cancelled — except for the
+  // cancellation templates themselves, which exist precisely to notify on
+  // cancelled bookings.
+  if (
+    booking.status === 'cancelled' &&
+    !CANCELLATION_TYPES.has(type as SmsType)
+  ) {
+    await supabase.from('sms_log').insert({
+      booking_id: booking.id,
+      customer_id: booking.customer.id,
+      template_id: templateId,
+      to_phone: booking.customer.phone_e164,
+      body: '',
+      provider: 'gatewayapi',
+      status: 'skipped',
+      error: 'booking_cancelled',
+    })
+    return res.status(200).json({ ok: true, skipped: true, reason: 'booking_cancelled' })
+  }
 
   // Skip if either flag forbids sending. Customer-level opt-out wins over
   // per-booking flag — see customers.sms_opt_out comment in 0009 migration.

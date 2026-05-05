@@ -46,6 +46,7 @@ export function CalendarPage() {
   const [showReschedule, setShowReschedule] = useState(false)
   const [completingMode, setCompletingMode] = useState(false)
   const [completionNote, setCompletionNote] = useState('')
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [monthRefreshKey, setMonthRefreshKey] = useState(0)
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
@@ -56,6 +57,23 @@ export function CalendarPage() {
     setManageBooking(null)
     setCompletingMode(false)
     setCompletionNote('')
+    setShowRemoveConfirm(false)
+  }
+
+  const handleRemoveCancelled = async () => {
+    if (!manageBooking) return
+    const id = manageBooking.id
+    const day = dayViewDate
+    setActionLoading(true)
+    const { error } = await supabase.rpc('dismiss_cancelled_booking', { p_booking_id: id })
+    setActionLoading(false)
+    if (error) {
+      console.error('dismiss_cancelled_booking failed:', error)
+      return
+    }
+    closeManageModal()
+    refreshMonth()
+    if (day) handleDayClick(day)
   }
 
   const handleSaveAndComplete = async () => {
@@ -165,6 +183,7 @@ export function CalendarPage() {
       .gte('starts_at', start.toISOString())
       .lt('starts_at', end.toISOString())
       .in('status', ['confirmed', 'pending', 'completed', 'no_show', 'cancelled'])
+      .eq('dismissed_from_calendar', false)
       .order('starts_at')
 
     let bookingList = (data ?? []) as unknown as DayBooking[]
@@ -544,32 +563,95 @@ export function CalendarPage() {
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={async () => {
-                      if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
-                      const id = manageBooking.id
-                      const day = dayViewDate
-                      setActionLoading(true)
-                      await supabase
-                        .from('bookings')
-                        .update({
-                          status: 'cancelled',
-                          cancelled_at: new Date().toISOString(),
-                          cancelled_by: 'admin',
-                        })
-                        .eq('id', id)
-                      closeManageModal()
-                      setActionLoading(false)
-                      refreshMonth()
-                      if (day) handleDayClick(day)
-                    }}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  >
-                    Afbestil booking
-                  </button>
+                  {manageBooking.status === 'cancelled' ? (
+                    <button
+                      onClick={() => setShowRemoveConfirm(true)}
+                      disabled={actionLoading}
+                      className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      Fjern
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
+                        const id = manageBooking.id
+                        const day = dayViewDate
+                        setActionLoading(true)
+                        const { error: cancelErr } = await supabase
+                          .from('bookings')
+                          .update({
+                            status: 'cancelled',
+                            cancelled_at: new Date().toISOString(),
+                            cancelled_by: 'admin',
+                          })
+                          .eq('id', id)
+
+                        // Fire shop_cancelled SMS in the background. We don't
+                        // block the modal close on this — the customer-side UX
+                        // is best-effort.
+                        if (!cancelErr) {
+                          fetch('/api/send-sms', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              type: 'cancellation_shop',
+                              bookingId: id,
+                            }),
+                          }).catch((err) => {
+                            console.error('shop_cancelled SMS failed:', err)
+                          })
+                        }
+
+                        closeManageModal()
+                        setActionLoading(false)
+                        refreshMonth()
+                        if (day) handleDayClick(day)
+                      }}
+                      disabled={actionLoading}
+                      className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      Afbestil booking
+                    </button>
+                  )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fjern (remove cancelled booking) confirmation — overlays the modal */}
+      {showRemoveConfirm && manageBooking && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          style={{ backgroundColor: 'rgba(26,26,26,0.55)' }}
+        >
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 className="font-serif text-[22px] text-gray-900">Fjern aflyst booking</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Tidsslottet er allerede frigivet. Bookingen forsvinder fra kalenderen, men
+              gemmes i Historik.
+            </p>
+            <div className="flex flex-wrap justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowRemoveConfirm(false)}
+                disabled={actionLoading}
+                className="text-[13px] px-4 py-2 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Annullér
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveCancelled}
+                disabled={actionLoading}
+                className="text-[13px] px-5 py-2 rounded-full bg-[#B08A3E] hover:bg-[#8C6A28] text-white font-semibold transition-colors disabled:opacity-50"
+              >
+                {actionLoading ? 'Fjerner…' : 'Fjern fra kalender'}
+              </button>
             </div>
           </div>
         </div>
