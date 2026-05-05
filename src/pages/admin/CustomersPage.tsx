@@ -549,27 +549,8 @@ export function CustomersPage() {
                   )}
                   {detail.favourite_barber_name && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p
-                        className="font-serif-sc font-semibold uppercase"
-                        style={{
-                          color: '#6B5B45',
-                          fontSize: '9px',
-                          letterSpacing: '0.18em',
-                        }}
-                      >
-                        Bliver klippet af
-                      </p>
-                      <p
-                        className="mt-1"
-                        style={{
-                          color: '#2A2118',
-                          fontFamily: 'Inter, system-ui, sans-serif',
-                          fontWeight: 500,
-                          fontSize: '14px',
-                        }}
-                      >
-                        {detail.favourite_barber_name}
-                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Bliver klippet af</p>
+                      <p className="text-sm font-medium text-gray-900 mt-1">{detail.favourite_barber_name}</p>
                     </div>
                   )}
                   {lastVisit && (

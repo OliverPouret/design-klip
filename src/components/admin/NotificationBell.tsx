@@ -229,10 +229,7 @@ export function NotificationBell() {
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-            <p
-              className="font-serif-sc font-semibold uppercase"
-              style={{ fontSize: '12px', letterSpacing: '0.18em', color: '#2A2118' }}
-            >
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-gray-700">
               Notifikationer
             </p>
             {unreadCount > 0 && (
