@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
@@ -47,11 +55,12 @@ const VARIABLES_BY_TEMPLATE: Record<string, readonly VariableName[]> = {
   shop_cancelled: ['customer_name', 'customer_first_name', 'barber_name', 'date', 'time', 'rebook_link', 'shop_name', 'shop_phone'],
 }
 
-// Each template requires a list of "groups". A group is satisfied when at
-// least one of its variables is present in the body. Single-element groups
-// behave like a plain mandatory variable; multi-element groups model
-// "either {customer_first_name} or {customer_name} is acceptable".
-const REQUIRED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> = {
+// Per-template "recommended" variable groups. A group is satisfied when at
+// least one of its variables appears in the body. Multi-element groups model
+// "either {customer_first_name} or {customer_name} is acceptable". Missing
+// groups produce a yellow warning but never block save — the shop owner
+// retains full template control.
+const RECOMMENDED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> = {
   confirmation: [
     ['customer_first_name', 'customer_name'],
     ['barber_name'],
@@ -77,6 +86,23 @@ const REQUIRED_VARIABLES: Record<string, readonly (readonly VariableName[])[]> =
     ['time'],
     ['rebook_link'],
   ],
+}
+
+// Short Danish "why this is recommended" line per variable. Used for the
+// yellow warning shown when a recommended variable is missing.
+const RECOMMENDED_REASONS: Record<VariableName, string> = {
+  customer_first_name: "Et navn gør beskeden personlig. Uden navn ligner SMS'en spam.",
+  customer_name: "Et navn gør beskeden personlig. Uden navn ligner SMS'en spam.",
+  barber_name: 'Kunden ved ikke hvilken frisør tiden er hos.',
+  service: 'Kunden ved ikke hvilken behandling de har booket.',
+  date: "Kunden ved ikke hvilken dag tiden er. SMS'en bliver ubrugelig.",
+  time: "Kunden ved ikke hvornår tiden er. SMS'en bliver ubrugelig.",
+  address: 'Kunden ved ikke hvor de skal hen.',
+  cancel_link:
+    'Kunden kan kun aflyse ved at ringe. Det kan øge antallet af no-shows hvis kunden glemmer.',
+  rebook_link: 'Kunden kan ikke nemt booke en ny tid efter aflysning.',
+  shop_name: 'Beskeden mangler afsenderkontekst.',
+  shop_phone: "Kunden har ingen kontaktinfo i SMS'en.",
 }
 
 const VARIABLE_HELP: Record<VariableName, string> = {
@@ -168,6 +194,7 @@ export function SmsTemplateEditor() {
   const { role } = useAuth()
   const isSuperAdmin = role === 'super_admin'
 
+  const editorRef = useRef<PillEditorHandle | null>(null)
   const [template, setTemplate] = useState<SmsTemplate | null>(null)
   const [body, setBody] = useState('')
   const [enabled, setEnabled] = useState(true)
@@ -216,8 +243,8 @@ export function SmsTemplateEditor() {
     () => (id ? (VARIABLES_BY_TEMPLATE[id] ?? []) : []),
     [id],
   )
-  const required = useMemo<readonly (readonly VariableName[])[]>(
-    () => (id ? (REQUIRED_VARIABLES[id] ?? []) : []),
+  const recommended = useMemo<readonly (readonly VariableName[])[]>(
+    () => (id ? (RECOMMENDED_VARIABLES[id] ?? []) : []),
     [id],
   )
   const present = useMemo(() => extractVariables(body), [body])
@@ -225,17 +252,17 @@ export function SmsTemplateEditor() {
     () => allowed.filter((v) => !present.has(v)),
     [allowed, present],
   )
-  // A group is satisfied if any of its alternatives is in the body.
-  const missingRequired = useMemo(
-    () => required.filter((group) => !group.some((v) => present.has(v))),
-    [required, present],
+  // A recommended group is satisfied if any of its alternatives is in the body.
+  const missingRecommended = useMemo(
+    () => recommended.filter((group) => !group.some((v) => present.has(v))),
+    [recommended, present],
   )
 
   const { chars, segments, isUcs2 } = useMemo(() => countSegments(body), [body])
   const previewBody = useMemo(() => interpolate(body), [body])
 
   const isDirty = body !== originalBody || enabled !== originalEnabled
-  const canSave = isSuperAdmin && isDirty && missingRequired.length === 0 && !saving
+  const canSave = isSuperAdmin && isDirty && !saving
 
   if (!id) return null
 
@@ -259,7 +286,7 @@ export function SmsTemplateEditor() {
   }
 
   const handleInsertVariable = (name: VariableName) => {
-    setBody((prev) => (prev.endsWith(' ') || prev.length === 0 ? `${prev}{${name}}` : `${prev} {${name}}`))
+    editorRef.current?.insertVariable(name)
   }
 
   const handleRestoreConfirm = () => {
@@ -331,6 +358,9 @@ export function SmsTemplateEditor() {
                     <button
                       key={v}
                       type="button"
+                      // Prevent the chip from stealing focus from the
+                      // contenteditable so the live cursor position survives.
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleInsertVariable(v)}
                       className="inline-flex items-center text-[13px] font-medium px-3 py-1 rounded-full border bg-white"
                       style={{ borderColor: '#B08A3E', color: '#B08A3E' }}
@@ -349,7 +379,7 @@ export function SmsTemplateEditor() {
               </div>
             )}
 
-            <PillEditor body={body} onChange={setBody} disabled={!isSuperAdmin} />
+            <PillEditor ref={editorRef} body={body} onChange={setBody} disabled={!isSuperAdmin} />
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
               <span className="text-ink-muted">
@@ -362,18 +392,44 @@ export function SmsTemplateEditor() {
               )}
             </div>
 
-            {missingRequired.length > 0 && (
-              <p className="text-[13px] text-error">
-                Skabelonen mangler påkrævede variabler:{' '}
-                {missingRequired
-                  .map((group) =>
-                    group.length === 1
-                      ? `{${group[0]}}`
-                      : `en af ${group.map((v) => `{${v}}`).join('/')}`,
-                  )
-                  .join(', ')}
-                .
-              </p>
+            {missingRecommended.length > 0 && (
+              <div
+                role="alert"
+                className="flex gap-2 border-l-4 border-warning bg-warning-bg p-3 rounded-r-lg"
+              >
+                <svg
+                  className="shrink-0 mt-0.5"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#B8761F"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+                <div className="text-[13px] leading-relaxed" style={{ color: '#B8761F' }}>
+                  <p className="font-semibold mb-1">Anbefalede variabler mangler</p>
+                  <ul className="space-y-1">
+                    {missingRecommended.map((group, i) => {
+                      const label =
+                        group.length === 1
+                          ? `{${group[0]}}`
+                          : group.map((v) => `{${v}}`).join(' eller ')
+                      return (
+                        <li key={i}>
+                          • {label} — {RECOMMENDED_REASONS[group[0]]}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
             )}
 
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
@@ -415,11 +471,9 @@ export function SmsTemplateEditor() {
               title={
                 !isSuperAdmin
                   ? 'Kun super admin kan redigere SMS-skabeloner.'
-                  : missingRequired.length > 0
-                    ? 'Tilføj de påkrævede variabler først.'
-                    : !isDirty
-                      ? 'Ingen ændringer at gemme.'
-                      : ''
+                  : !isDirty
+                    ? 'Ingen ændringer at gemme.'
+                    : ''
               }
               className="rounded-full bg-accent text-white px-6 py-3 text-[14px] font-semibold hover:bg-accent-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -502,6 +556,10 @@ interface PillEditorProps {
   disabled?: boolean
 }
 
+export interface PillEditorHandle {
+  insertVariable: (name: string) => void
+}
+
 interface Segment {
   type: 'text' | 'pill'
   value: string
@@ -546,7 +604,10 @@ function serializeNode(root: HTMLElement): string {
   return out
 }
 
-function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
+const PillEditor = forwardRef<PillEditorHandle, PillEditorProps>(function PillEditor(
+  { body, onChange, disabled = false },
+  externalRef,
+) {
   const ref = useRef<HTMLDivElement>(null)
   // We treat the contenteditable as uncontrolled: re-render its DOM only when
   // `body` changes from the outside (insert variable, restore default), not on
@@ -567,6 +628,60 @@ function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
     lastSerialized.current = body
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useImperativeHandle(externalRef, () => ({
+    insertVariable: (name: string) => {
+      const host = ref.current
+      if (!host || disabled) return
+
+      // Pick an insertion range. Prefer the live selection if it sits inside
+      // the editor; otherwise fall back to the end of the editor (this covers
+      // the case where the user has not yet clicked into the body).
+      const sel = window.getSelection()
+      let range: Range | null = null
+      if (sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0)
+        if (host.contains(r.startContainer)) {
+          range = r
+        }
+      }
+
+      const pill = createPill(name)
+      if (range) {
+        range.deleteContents()
+        range.insertNode(pill)
+      } else {
+        host.appendChild(pill)
+      }
+
+      // Ensure there is a text node after the pill so the cursor can land
+      // outside it; without this the caret can get stuck inside an adjacent
+      // contenteditable=false span on some browsers.
+      const trailing = pill.nextSibling
+      let textNode: Text
+      if (trailing && trailing.nodeType === Node.TEXT_NODE) {
+        textNode = trailing as Text
+      } else {
+        textNode = document.createTextNode('')
+        pill.parentNode?.insertBefore(textNode, pill.nextSibling)
+      }
+
+      host.focus()
+      const newRange = document.createRange()
+      newRange.setStart(textNode, 0)
+      newRange.setEnd(textNode, 0)
+      const newSel = window.getSelection()
+      newSel?.removeAllRanges()
+      newSel?.addRange(newRange)
+
+      // Sync state. Setting lastSerialized first means the body-change effect
+      // above will short-circuit and not re-render the DOM (which would reset
+      // the cursor we just placed).
+      const next = serializeNode(host)
+      lastSerialized.current = next
+      onChange(next)
+    },
+  }))
 
   const handleInput = () => {
     if (!ref.current) return
@@ -639,11 +754,31 @@ function PillEditor({ body, onChange, disabled = false }: PillEditorProps) {
       suppressContentEditableWarning
       onInput={handleInput}
       onKeyDown={handleKeyDown}
-      className="min-h-[120px] w-full rounded-lg border border-border bg-white px-4 py-3 text-[14px] leading-relaxed text-ink focus:outline-none focus:border-accent whitespace-pre-wrap break-words"
+      className="min-h-[120px] w-full rounded-lg border border-border bg-white px-4 py-3 text-[14px] leading-relaxed text-ink focus:outline-none focus:border-accent whitespace-pre-wrap break-words font-sans"
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
       aria-label="SMS-skabelon tekstfelt"
     />
   )
+})
+
+function createPill(name: string): HTMLSpanElement {
+  const pill = document.createElement('span')
+  pill.dataset.pill = name
+  pill.contentEditable = 'false'
+  pill.textContent = name
+  pill.setAttribute('data-pill', name)
+  pill.style.display = 'inline-block'
+  pill.style.padding = '2px 8px'
+  pill.style.margin = '0 2px'
+  pill.style.borderRadius = '9999px'
+  pill.style.border = '1px solid #B08A3E'
+  pill.style.color = '#B08A3E'
+  pill.style.background = '#FFFFFF'
+  pill.style.fontFamily = 'Inter, system-ui, sans-serif'
+  pill.style.fontWeight = '500'
+  pill.style.fontSize = '13px'
+  pill.style.userSelect = 'none'
+  return pill
 }
 
 function renderInto(host: HTMLElement, body: string) {
@@ -655,23 +790,7 @@ function renderInto(host: HTMLElement, body: string) {
     if (seg.type === 'text') {
       host.appendChild(document.createTextNode(seg.value))
     } else {
-      const pill = document.createElement('span')
-      pill.dataset.pill = seg.value
-      pill.contentEditable = 'false'
-      pill.textContent = seg.value
-      pill.setAttribute('data-pill', seg.value)
-      pill.style.display = 'inline-block'
-      pill.style.padding = '2px 8px'
-      pill.style.margin = '0 2px'
-      pill.style.borderRadius = '9999px'
-      pill.style.border = '1px solid #B08A3E'
-      pill.style.color = '#B08A3E'
-      pill.style.background = '#FFFFFF'
-      pill.style.fontFamily = 'Inter, system-ui, sans-serif'
-      pill.style.fontWeight = '500'
-      pill.style.fontSize = '13px'
-      pill.style.userSelect = 'none'
-      host.appendChild(pill)
+      host.appendChild(createPill(seg.value))
     }
   }
   // Trailing text node ensures cursor can be placed after the last pill.
@@ -741,6 +860,10 @@ function HelpDialog({ variables, onClose }: { variables: readonly VariableName[]
             ×
           </button>
         </div>
+        <p className="text-sm text-ink-muted leading-relaxed">
+          Alle variabler er valgfrie. De anbefalede gør SMS&apos;en mere brugbar, men du kan
+          tilpasse skabelonen som du vil.
+        </p>
         <ul className="space-y-3">
           {variables.map((v) => (
             <li key={v} className="text-sm text-ink leading-snug">
