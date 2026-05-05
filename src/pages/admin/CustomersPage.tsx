@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
+import { useBarbers } from '../../hooks/useBarbers'
+import { useServices } from '../../hooks/useServices'
 import { formatDanishDate, formatDanishDateTime } from '../../utils/revenueUtils'
 
 interface CustomerRow {
@@ -10,6 +12,10 @@ interface CustomerRow {
   total_bookings: number
   last_booking_at: string | null
   notes_summary: string | null
+  favourite_barber_id: string | null
+  favourite_service_id: string | null
+  no_show_count: number
+  activity_status: 'active' | 'inactive' | 'never'
 }
 
 interface CustomerDetail {
@@ -23,6 +29,7 @@ interface CustomerDetail {
   created_at: string
   sms_opt_out: boolean
   no_show_count: number
+  favourite_barber_name: string | null
 }
 
 interface BookingHistory {
@@ -59,6 +66,13 @@ export function CustomersPage() {
   const { user } = useAuth()
   const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [search, setSearch] = useState('')
+  const [filterBarberId, setFilterBarberId] = useState<string>('')
+  const [filterServiceId, setFilterServiceId] = useState<string>('')
+  const [filterVisits, setFilterVisits] = useState<string>('')
+  const [filterNoShows, setFilterNoShows] = useState<string>('')
+  const [filterActivity, setFilterActivity] = useState<string>('')
+  const { barbers: filterBarbers } = useBarbers()
+  const { services: filterServices } = useServices()
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<CustomerDetail | null>(null)
@@ -82,8 +96,10 @@ export function CustomersPage() {
 
   useEffect(() => {
     supabase
-      .from('customers')
-      .select('id, full_name, phone_e164, total_bookings, last_booking_at, notes_summary')
+      .from('customers_enriched')
+      .select(
+        'id, full_name, phone_e164, total_bookings, last_booking_at, notes_summary, favourite_barber_id, favourite_service_id, no_show_count, activity_status',
+      )
       .order('last_booking_at', { ascending: false, nullsFirst: false })
       .limit(200)
       .then(({ data }) => {
@@ -97,8 +113,10 @@ export function CustomersPage() {
 
     const fetchDetail = async () => {
       const { data: cust } = await supabase
-        .from('customers')
-        .select('id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at, sms_opt_out, no_show_count')
+        .from('customers_enriched')
+        .select(
+          'id, full_name, phone_e164, email, total_bookings, last_booking_at, notes_summary, created_at, sms_opt_out, no_show_count, favourite_barber_name',
+        )
         .eq('id', selectedId)
         .single()
       if (cust) setDetail(cust as CustomerDetail)
@@ -279,13 +297,61 @@ export function CustomersPage() {
   }
   */
 
-  const filtered = search.trim()
-    ? customers.filter(
-        (c) =>
-          c.full_name.toLowerCase().includes(search.toLowerCase()) ||
-          c.phone_e164.includes(search.replace(/\s/g, '')),
-      )
-    : customers
+  const anyFilterActive =
+    Boolean(filterBarberId) ||
+    Boolean(filterServiceId) ||
+    Boolean(filterVisits) ||
+    Boolean(filterNoShows) ||
+    Boolean(filterActivity)
+
+  const resetFilters = () => {
+    setFilterBarberId('')
+    setFilterServiceId('')
+    setFilterVisits('')
+    setFilterNoShows('')
+    setFilterActivity('')
+  }
+
+  const visitsTier = (count: number): '1-2' | '3-5' | '6-10' | '10+' | '0' => {
+    if (count <= 0) return '0'
+    if (count <= 2) return '1-2'
+    if (count <= 5) return '3-5'
+    if (count <= 10) return '6-10'
+    return '10+'
+  }
+
+  const noShowsTier = (count: number): '0' | '1' | '2+' => {
+    if (count <= 0) return '0'
+    if (count === 1) return '1'
+    return '2+'
+  }
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    const phoneTerm = search.replace(/\s/g, '')
+    return customers.filter((c) => {
+      if (term) {
+        const matchesSearch =
+          c.full_name.toLowerCase().includes(term) ||
+          c.phone_e164.includes(phoneTerm)
+        if (!matchesSearch) return false
+      }
+      if (filterBarberId && c.favourite_barber_id !== filterBarberId) return false
+      if (filterServiceId && c.favourite_service_id !== filterServiceId) return false
+      if (filterVisits && visitsTier(c.total_bookings ?? 0) !== filterVisits) return false
+      if (filterNoShows && noShowsTier(c.no_show_count ?? 0) !== filterNoShows) return false
+      if (filterActivity && c.activity_status !== filterActivity) return false
+      return true
+    })
+  }, [
+    customers,
+    search,
+    filterBarberId,
+    filterServiceId,
+    filterVisits,
+    filterNoShows,
+    filterActivity,
+  ])
 
   // Calculate usual service from booking history
   const usualService = (() => {
@@ -306,7 +372,7 @@ export function CustomersPage() {
       <div className="flex flex-1 md:min-h-0 h-full">
         {/* LEFT: Customer list */}
         <div className="w-full md:w-72 lg:w-80 flex-shrink-0 flex flex-col border-r border-gray-200 bg-white md:h-full">
-          <div className="p-3 border-b border-gray-200">
+          <div className="p-3 border-b border-gray-200 space-y-2">
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
               <svg
                 width="14"
@@ -327,6 +393,71 @@ export function CustomersPage() {
                 placeholder="Søg kunder…"
                 className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder:text-gray-400"
               />
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+              <FilterSelect
+                value={filterBarberId}
+                onChange={setFilterBarberId}
+                ariaLabel="Filtrér efter frisør"
+                options={[
+                  { value: '', label: 'Frisør: Alle' },
+                  ...filterBarbers.map((b) => ({ value: b.id, label: b.display_name })),
+                ]}
+              />
+              <FilterSelect
+                value={filterServiceId}
+                onChange={setFilterServiceId}
+                ariaLabel="Filtrér efter ydelse"
+                options={[
+                  { value: '', label: 'Ydelse: Alle' },
+                  ...filterServices.map((s) => ({ value: s.id, label: s.name_da })),
+                ]}
+              />
+              <FilterSelect
+                value={filterVisits}
+                onChange={setFilterVisits}
+                ariaLabel="Filtrér efter besøgsantal"
+                options={[
+                  { value: '', label: 'Besøg: Alle' },
+                  { value: '1-2', label: '1-2 besøg' },
+                  { value: '3-5', label: '3-5 besøg' },
+                  { value: '6-10', label: '6-10 besøg' },
+                  { value: '10+', label: '10+ besøg' },
+                ]}
+              />
+              <FilterSelect
+                value={filterNoShows}
+                onChange={setFilterNoShows}
+                ariaLabel="Filtrér efter udeblivelser"
+                options={[
+                  { value: '', label: 'Udeblivelser: Alle' },
+                  { value: '0', label: '0' },
+                  { value: '1', label: '1' },
+                  { value: '2+', label: '2+' },
+                ]}
+              />
+              <FilterSelect
+                value={filterActivity}
+                onChange={setFilterActivity}
+                ariaLabel="Filtrér efter aktivitet"
+                options={[
+                  { value: '', label: 'Aktivitet: Alle' },
+                  { value: 'active', label: 'Aktiv (sidste 60 dage)' },
+                  { value: 'inactive', label: 'Inaktiv (60+ dage)' },
+                  { value: 'never', label: 'Aldrig' },
+                ]}
+              />
+              {anyFilterActive && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="ml-auto text-[12px] hover:underline"
+                  style={{ color: '#B08A3E' }}
+                >
+                  Nulstil filtre
+                </button>
+              )}
             </div>
           </div>
 
@@ -414,6 +545,31 @@ export function CustomersPage() {
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Får som regel</p>
                       <p className="text-sm font-medium text-gray-900 mt-1">{usualService}</p>
+                    </div>
+                  )}
+                  {detail.favourite_barber_name && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p
+                        className="font-serif-sc font-semibold uppercase"
+                        style={{
+                          color: '#6B5B45',
+                          fontSize: '9px',
+                          letterSpacing: '0.18em',
+                        }}
+                      >
+                        Bliver klippet af
+                      </p>
+                      <p
+                        className="mt-1"
+                        style={{
+                          color: '#2A2118',
+                          fontFamily: 'Inter, system-ui, sans-serif',
+                          fontWeight: 500,
+                          fontSize: '14px',
+                        }}
+                      >
+                        {detail.favourite_barber_name}
+                      </p>
                     </div>
                   )}
                   {lastVisit && (
@@ -628,6 +784,46 @@ export function CustomersPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+interface FilterSelectOption {
+  value: string
+  label: string
+}
+
+interface FilterSelectProps {
+  value: string
+  onChange: (next: string) => void
+  options: readonly FilterSelectOption[]
+  ariaLabel: string
+}
+
+// Pill-shaped <select>. Active (non-default) state gets a subtle gold tint
+// so a glance over the row tells Hamada which dimensions are filtering.
+function FilterSelect({ value, onChange, options, ariaLabel }: FilterSelectProps) {
+  const isActive = value !== ''
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={ariaLabel}
+      className="rounded-full border px-4 py-2 outline-none transition-colors"
+      style={{
+        borderColor: '#B08A3E',
+        backgroundColor: isActive ? '#FAF6EC' : '#FFFFFF',
+        color: '#2A2118',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontWeight: 500,
+        fontSize: '13px',
+      }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }
 
