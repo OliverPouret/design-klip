@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { isoDate, isoWeekday } from '../../lib/danishDates'
-import { useAuth } from '../../lib/auth'
 import { Card } from '../../components/admin/Card'
-import { RescheduleModal } from '../../components/admin/booking/RescheduleModal'
+import { BookingDetailModal } from '../../components/admin/booking/BookingDetailModal'
 import { DayScheduleGrid } from '../../components/admin/schedule/DayScheduleGrid'
 import { useBarbers } from '../../hooks/useBarbers'
 
@@ -23,6 +22,8 @@ interface DayBooking {
   barber_id: string
   service_id: string
   customer_id: string
+  completed_at: string | null
+  no_show_marked_at: string | null
   customer: { id: string; full_name: string; phone_e164: string }
   service: { name_da: string }
   barber: { display_name: string; slug: string }
@@ -42,65 +43,10 @@ export function CalendarPage() {
     Record<string, { opens: string; closes: string } | null>
   >({})
   const [manageBooking, setManageBooking] = useState<DayBooking | null>(null)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [showReschedule, setShowReschedule] = useState(false)
-  const [completingMode, setCompletingMode] = useState(false)
-  const [completionNote, setCompletionNote] = useState('')
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [monthRefreshKey, setMonthRefreshKey] = useState(0)
   const refreshMonth = () => setMonthRefreshKey((k) => k + 1)
   const [dayLoading, setDayLoading] = useState(false)
   const { barbers: activeBarbers } = useBarbers()
-  const { user } = useAuth()
-
-  const closeManageModal = () => {
-    setManageBooking(null)
-    setCompletingMode(false)
-    setCompletionNote('')
-    setShowRemoveConfirm(false)
-  }
-
-  const handleRemoveCancelled = async () => {
-    if (!manageBooking) return
-    const id = manageBooking.id
-    const day = dayViewDate
-    setActionLoading(true)
-    const { error } = await supabase.rpc('dismiss_cancelled_booking', { p_booking_id: id })
-    setActionLoading(false)
-    if (error) {
-      console.error('dismiss_cancelled_booking failed:', error)
-      return
-    }
-    closeManageModal()
-    refreshMonth()
-    if (day) handleDayClick(day)
-  }
-
-  const handleSaveAndComplete = async () => {
-    if (!manageBooking) return
-    const id = manageBooking.id
-    const customerId = manageBooking.customer.id
-    const day = dayViewDate
-    const trimmed = completionNote.trim()
-    setActionLoading(true)
-    try {
-      if (trimmed) {
-        await supabase.from('customer_notes').insert({
-          customer_id: customerId,
-          author_id: user?.id ?? null,
-          body: trimmed,
-          tags: ['klip'],
-          booking_id: id,
-        })
-      }
-      await supabase.from('bookings').update({ status: 'completed' }).eq('id', id)
-    } finally {
-      setActionLoading(false)
-      closeManageModal()
-      refreshMonth()
-      if (day) handleDayClick(day)
-    }
-  }
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -176,6 +122,7 @@ export function CalendarPage() {
       .from('bookings')
       .select(`
         id, starts_at, ends_at, duration_minutes, status, source, barber_id, service_id, customer_id,
+        completed_at, no_show_marked_at,
         customer:customers!inner(id, full_name, phone_e164),
         service:services!inner(name_da),
         barber:barbers!inner(display_name, slug)
@@ -420,261 +367,14 @@ export function CalendarPage() {
         </div>
       )}
 
-      {/* Manage booking modal */}
+      {/* Booking detail modal — handles status-aware actions, completion,
+          no-show, cancellation, fjern, and reschedule overlays internally. */}
       {manageBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-lg border border-gray-200 w-full max-w-md overflow-hidden shadow-xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h3 className="text-sm font-medium text-gray-900">
-                Booking — {manageBooking.customer.full_name}
-              </h3>
-              <button
-                onClick={closeManageModal}
-                className="text-gray-400 hover:text-gray-700 transition-colors"
-                aria-label="Luk"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Booking details */}
-            <div className="px-5 py-4 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Ydelse</span>
-                <span className="text-gray-900">{manageBooking.service.name_da}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Frisør</span>
-                <span className="text-gray-900">{manageBooking.barber.display_name}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-gray-500">Tid</span>
-                <button
-                  onClick={() => setShowReschedule(true)}
-                  className="border border-[#B08A3E] text-[#B08A3E] hover:bg-[#B08A3E] hover:text-white text-xs px-3 py-1 rounded transition-colors"
-                >
-                  Skift tid
-                </button>
-                <span className="flex-1" />
-                <span className="text-gray-900">
-                  {new Date(manageBooking.starts_at).toLocaleTimeString('da-DK', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                  {' — '}
-                  {new Date(manageBooking.ends_at).toLocaleTimeString('da-DK', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
-                <span className="text-gray-900 capitalize">{manageBooking.status}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Telefon</span>
-                <a
-                  href={`tel:${manageBooking.customer.phone_e164}`}
-                  className="text-[#B08A3E]"
-                >
-                  {manageBooking.customer.phone_e164}
-                </a>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-gray-500 flex-shrink-0">Note</span>
-                <span
-                  className={`text-right ${
-                    manageBooking.klipNote?.body ? 'text-gray-900' : 'text-gray-400'
-                  }`}
-                  title={manageBooking.klipNote?.body || undefined}
-                >
-                  {manageBooking.klipNote?.body
-                    ? manageBooking.klipNote.body.length > 80
-                      ? `${manageBooking.klipNote.body.slice(0, 80)}…`
-                      : manageBooking.klipNote.body
-                    : '—'}
-                </span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="px-5 py-4 border-t border-gray-200 space-y-2">
-              {completingMode ? (
-                <div className="space-y-3">
-                  <textarea
-                    value={completionNote}
-                    onChange={(e) => setCompletionNote(e.target.value)}
-                    placeholder="Hvad blev lavet i dag?"
-                    rows={3}
-                    autoFocus
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#B08A3E] transition-colors resize-none"
-                  />
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleSaveAndComplete}
-                      disabled={actionLoading}
-                      className="bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {actionLoading ? 'Gemmer…' : 'Gem og fuldfør'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCompletingMode(false)
-                        setCompletionNote('')
-                      }}
-                      disabled={actionLoading}
-                      className="text-xs text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
-                    >
-                      Annullér
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {manageBooking.status === 'confirmed' && (
-                    <>
-                      <button
-                        onClick={() => setCompletingMode(true)}
-                        disabled={actionLoading}
-                        className="w-full py-2.5 bg-[#B08A3E] hover:bg-[#8C6A28] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        Markér som fuldført
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const id = manageBooking.id
-                          const day = dayViewDate
-                          setActionLoading(true)
-                          await supabase.from('bookings').update({ status: 'no_show' }).eq('id', id)
-                          closeManageModal()
-                          setActionLoading(false)
-                          refreshMonth()
-                          if (day) handleDayClick(day)
-                        }}
-                        disabled={actionLoading}
-                        className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        Udeblevet
-                      </button>
-                    </>
-                  )}
-                  {manageBooking.status === 'cancelled' ? (
-                    <button
-                      onClick={() => setShowRemoveConfirm(true)}
-                      disabled={actionLoading}
-                      className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                    >
-                      Fjern
-                    </button>
-                  ) : (
-                    <button
-                      onClick={async () => {
-                        if (!confirm('Er du sikker på at du vil afbestille denne booking?')) return
-                        const id = manageBooking.id
-                        const day = dayViewDate
-                        setActionLoading(true)
-                        const { error: cancelErr } = await supabase
-                          .from('bookings')
-                          .update({
-                            status: 'cancelled',
-                            cancelled_at: new Date().toISOString(),
-                            cancelled_by: 'admin',
-                          })
-                          .eq('id', id)
-
-                        // Fire shop_cancelled SMS in the background. We don't
-                        // block the modal close on this — the customer-side UX
-                        // is best-effort.
-                        if (!cancelErr) {
-                          fetch('/api/send-sms', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              type: 'cancellation_shop',
-                              bookingId: id,
-                            }),
-                          }).catch((err) => {
-                            console.error('shop_cancelled SMS failed:', err)
-                          })
-                        }
-
-                        closeManageModal()
-                        setActionLoading(false)
-                        refreshMonth()
-                        if (day) handleDayClick(day)
-                      }}
-                      disabled={actionLoading}
-                      className="w-full py-2.5 border border-gray-200 text-gray-500 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                    >
-                      Afbestil booking
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fjern (remove cancelled booking) confirmation — overlays the modal */}
-      {showRemoveConfirm && manageBooking && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
-          style={{ backgroundColor: 'rgba(26,26,26,0.55)' }}
-        >
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 space-y-4">
-            <h3 className="font-serif text-[22px] text-gray-900">Fjern aflyst booking</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Tidsslottet er allerede frigivet. Bookingen forsvinder fra kalenderen, men
-              gemmes i Historik.
-            </p>
-            <div className="flex flex-wrap justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowRemoveConfirm(false)}
-                disabled={actionLoading}
-                className="text-[13px] px-4 py-2 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Annullér
-              </button>
-              <button
-                type="button"
-                onClick={handleRemoveCancelled}
-                disabled={actionLoading}
-                className="text-[13px] px-5 py-2 rounded-full bg-[#B08A3E] hover:bg-[#8C6A28] text-white font-semibold transition-colors disabled:opacity-50"
-              >
-                {actionLoading ? 'Fjerner…' : 'Fjern fra kalender'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reschedule modal — overlays on top of the Administrér modal */}
-      {showReschedule && manageBooking && (
-        <RescheduleModal
-          booking={{
-            id: manageBooking.id,
-            barber_id: manageBooking.barber_id,
-            service_id: manageBooking.service_id,
-            starts_at: manageBooking.starts_at,
-            ends_at: manageBooking.ends_at,
-            customer_name: manageBooking.customer.full_name,
-            service_name: manageBooking.service.name_da,
-            barber_name: manageBooking.barber.display_name,
-          }}
-          onClose={() => setShowReschedule(false)}
-          onRescheduled={() => {
+        <BookingDetailModal
+          booking={manageBooking}
+          onClose={() => setManageBooking(null)}
+          onChanged={() => {
             const day = dayViewDate
-            setShowReschedule(false)
-            setManageBooking(null)
             refreshMonth()
             if (day) handleDayClick(day)
           }}

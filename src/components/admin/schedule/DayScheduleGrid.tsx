@@ -89,11 +89,13 @@ export function DayScheduleGrid({
     const offset = bookingMinutes - startMinutes
     const top = (offset / 30) * slotHeight
     const naturalHeight = (b.duration_minutes / 30) * slotHeight
-    // Cancelled bookings collapse to a one-line strip pinned to the top of
-    // the original slot so the rest of the time reads as "free".
+    // Cancelled and no-show bookings collapse to a one-line strip pinned to
+    // the top of the original slot so the rest of the time reads as "free".
     const isCancelled = b.status === 'cancelled'
-    const height = isCancelled ? Math.min(naturalHeight, 28) : naturalHeight
-    return { top, height, naturalHeight, isCancelled }
+    const isNoShow = b.status === 'no_show'
+    const isCompact = isCancelled || isNoShow
+    const height = isCompact ? Math.min(naturalHeight, 28) : naturalHeight
+    return { top, height, naturalHeight, isCancelled, isNoShow }
   }
 
   void isoWd // referenced indirectly via barberHours map; suppress unused
@@ -171,11 +173,14 @@ export function DayScheduleGrid({
                     new Date(booking.ends_at).getTime() < Date.now() &&
                     (booking.status === 'confirmed' || booking.status === 'pending')
 
-                  // Cancelled bookings always render as a compact one-liner
-                  // (AFLYST eyebrow + customer name, line-through). All other
-                  // info is intentionally hidden — the row only exists so the
-                  // shop can reopen the modal and dismiss it.
-                  if (geom.isCancelled) {
+                  // Cancelled and no-show bookings render as a one-liner
+                  // pinned to the top of the original slot — the rest of the
+                  // time reads as "free". Visual differentiation: red border
+                  // + AFLYST eyebrow vs. grey border + UDEBLEVET eyebrow.
+                  if (geom.isCancelled || geom.isNoShow) {
+                    const eyebrowText = geom.isCancelled ? 'Aflyst' : 'Udeblevet'
+                    const borderColor = geom.isCancelled ? '#9A2A2A' : '#A89070'
+                    const eyebrowColor = geom.isCancelled ? '#9A2A2A' : '#6B5B45'
                     return (
                       <button
                         key={booking.id}
@@ -185,13 +190,13 @@ export function DayScheduleGrid({
                       >
                         <div
                           className="h-full px-2.5 py-0.5 border-l-[3px] flex items-center gap-2"
-                          style={{ backgroundColor: '#F4F4F4', borderColor: '#9A2A2A' }}
+                          style={{ backgroundColor: '#F4F4F4', borderColor }}
                         >
                           <span
                             className="font-serif-sc text-[9px] tracking-[0.18em] uppercase font-semibold flex-shrink-0"
-                            style={{ color: '#9A2A2A' }}
+                            style={{ color: eyebrowColor }}
                           >
-                            Aflyst
+                            {eyebrowText}
                           </span>
                           <span
                             className="text-[13px] font-medium line-through truncate"
@@ -215,11 +220,6 @@ export function DayScheduleGrid({
                     nameClass = 'text-gray-500'
                     metaClass = 'text-gray-400'
                     noteClass = 'text-gray-400'
-                  } else if (booking.status === 'no_show') {
-                    blockClass = 'bg-red-50 border-l-[3px] border-red-300'
-                    nameClass = 'text-red-700'
-                    metaClass = 'text-red-500'
-                    noteClass = 'text-red-400'
                   } else if (isPastDue) {
                     blockClass = 'bg-amber-50 border-l-[3px] border-amber-500 animate-pulse-amber'
                     nameClass = 'text-gray-900'
