@@ -4,8 +4,9 @@ import {
   BookingDetailModal,
   type ModalBooking,
 } from '../../components/admin/booking/BookingDetailModal'
+import { STATUS_META, type StatusKey } from '../../components/admin/statusMeta'
+import { relativeDanish } from '../../utils/danishRelative'
 
-type StatusKey = 'completed' | 'cancelled' | 'no_show' | 'dismissed'
 type RangeKey = '7' | '30' | '90' | 'all'
 
 interface HistorikRow {
@@ -43,64 +44,6 @@ function formatDateDanish(d: Date): string {
 }
 function formatTimeDanish(d: Date): string {
   return `kl. ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-}
-
-function relativeDanish(d: Date): string {
-  const ms = Date.now() - d.getTime()
-  const mins = Math.round(ms / 60_000)
-  if (mins < 1) return 'lige nu'
-  if (mins < 60) return `for ${mins} ${mins === 1 ? 'minut' : 'minutter'} siden`
-  const hours = Math.round(mins / 60)
-  if (hours < 24) return `for ${hours} ${hours === 1 ? 'time' : 'timer'} siden`
-  const days = Math.round(hours / 24)
-  if (days === 1) return 'i går'
-  if (days < 7) return `for ${days} dage siden`
-  if (days < 30) return `for ${Math.round(days / 7)} ${Math.round(days / 7) === 1 ? 'uge' : 'uger'} siden`
-  return `for ${Math.round(days / 30)} ${Math.round(days / 30) === 1 ? 'måned' : 'måneder'} siden`
-}
-
-interface StatusMeta {
-  key: StatusKey
-  label: string
-  dot: string
-  pillBg: string
-  pillColor: string
-  verb: string
-}
-
-const STATUS_META: Record<StatusKey, StatusMeta> = {
-  completed: {
-    key: 'completed',
-    label: 'Fuldført',
-    dot: '#5C7A4A',
-    pillBg: '#E3E8D5',
-    pillColor: '#3A5030',
-    verb: 'fuldført',
-  },
-  cancelled: {
-    key: 'cancelled',
-    label: 'Aflyst',
-    dot: '#9A2A2A',
-    pillBg: '#EFD8D2',
-    pillColor: '#9A2A2A',
-    verb: 'aflyst',
-  },
-  no_show: {
-    key: 'no_show',
-    label: 'Udeblevet',
-    dot: '#A89070',
-    pillBg: '#F4F4F4',
-    pillColor: '#6B5B45',
-    verb: 'markeret udeblevet',
-  },
-  dismissed: {
-    key: 'dismissed',
-    label: 'Fjernet',
-    dot: '#C8B89A',
-    pillBg: '#F4F4F4',
-    pillColor: '#9A2A2A',
-    verb: 'fjernet',
-  },
 }
 
 const RANGE_DAYS: Record<RangeKey, number | null> = {
