@@ -1,7 +1,15 @@
 import { StrictMode } from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
+import ReactDOM from 'react-dom'
 import './index.css'
 import App from './App.tsx'
+
+if (import.meta.env.DEV) {
+  void import('@axe-core/react').then(({ default: axe }) => {
+    axe(React, ReactDOM, 1000)
+  })
+}
 
 // Block pinch-zoom on iOS Safari (which ignores user-scalable=no)
 const blockGesture = (e: Event) => e.preventDefault()

@@ -78,10 +78,11 @@ export function CustomerStep({
       <div className="space-y-5">
         {/* Name */}
         <div>
-          <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+          <label htmlFor="customer-name" className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
             Navn <span className="text-accent">*</span>
           </label>
           <input
+            id="customer-name"
             type="text"
             value={form.fullName}
             onChange={(e) => set('fullName', e.target.value)}
@@ -97,10 +98,11 @@ export function CustomerStep({
 
         {/* Phone */}
         <div>
-          <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+          <label htmlFor="customer-phone" className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
             Mobilnummer <span className="text-accent">*</span>
           </label>
           <input
+            id="customer-phone"
             type="tel"
             value={form.phone}
             onChange={(e) => set('phone', e.target.value)}
@@ -120,10 +122,11 @@ export function CustomerStep({
 
         {/* Email (optional) */}
         <div>
-          <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+          <label htmlFor="customer-email" className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
             E-mail <span className="text-ink-subtle font-normal normal-case">(valgfrit)</span>
           </label>
           <input
+            id="customer-email"
             type="email"
             value={form.email}
             onChange={(e) => set('email', e.target.value)}
@@ -134,10 +137,11 @@ export function CustomerStep({
 
         {/* Notes (optional) */}
         <div>
-          <label className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
+          <label htmlFor="customer-notes" className="block text-xs tracking-[0.08em] uppercase text-ink-subtle mb-1.5">
             Besked til frisøren <span className="text-ink-subtle font-normal normal-case">(valgfrit)</span>
           </label>
           <textarea
+            id="customer-notes"
             value={form.notes}
             onChange={(e) => set('notes', e.target.value)}
             placeholder="f.eks. fade 2 i siderne, langt på toppen"
